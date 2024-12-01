@@ -49,6 +49,7 @@ TorchDyno is a PyTorch-based library for the implementation of dynamical systems
 ================
 **Installation**
 ================
+First, you need to have PyTorch installed. You can find the installation instructions on the [PyTorch website](https://pytorch.org/). **You must install both torch and torchvision**.
 To install TorchDyno, you can use pip:
 
 .. code-block:: bash
@@ -66,4 +67,4 @@ To install the latest version from the source code, you can clone the repository
 ===========
 **Credits**
 ===========
-We thank [eclypse-org](https://github.com/eclypse-org) and [Jacopo Massa](https://github.com/jacopo-massa) for the structure and the template of the documentation!
+We thank `eclypse-org <https://github.com/eclypse-org>`_ and `Jacopo Massa <https://github.com/jacopo-massa>`_ for the structure and the template of the documentation!
