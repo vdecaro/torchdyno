@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from typing import (
     Callable,
@@ -56,7 +57,10 @@ class Reservoir(Module):
     ):
 
         super().__init__()
-        assert rho < 1 and input_scaling <= 1
+        if input_scaling > 1:
+            logging.warning("Input scaling must be <= 1")
+        if rho >= 1:
+            logging.warning("Spectral radius must be < 1")
 
         self.input_scaling = Parameter(torch.tensor(input_scaling), requires_grad=False)
         self.rho = Parameter(torch.tensor(rho), requires_grad=False)
