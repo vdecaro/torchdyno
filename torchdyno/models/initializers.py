@@ -222,9 +222,7 @@ def sparse(
     # use scipy.sparse.random to generate sparse random matrix
     npdtype = _torch_to_numpy_dtype(dtype)
     if values_sampler is None:
-        values_sampler = lambda x: np.random.uniform(
-            low=-1.0, high=1.0, size=x, dtype=npdtype
-        )
+        values_sampler = lambda x: np.random.uniform(low=-1.0, high=1.0, size=x)
     sparse_mat = scipy.sparse.random(
         shape[0],
         shape[1],
