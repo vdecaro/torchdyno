@@ -1,33 +1,37 @@
 name: Build and Deploy to PyPI
-on: [workflow_dispatch]
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
-  build_and_deploy:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12"]
-    runs-on: ${{ matrix.os }}
-
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Build wheel + sdist
+        run: uv build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
-      - name: Install Dependencies
-        run: make setup
-
-      - name: Build the Package
-        run: make build
-
-      - name: Verify the distribution
-        run: make verify
-
-      - name: Upload to PyPI
-        run: |
-          poetry config pypi-token.pypi ${{ secrets.TORCHDYNO_PYPI_TOKEN }}
-          poetry publish --skip-existing -vv --no-interaction
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write            # OIDC Trusted Publishing — no token secret
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
