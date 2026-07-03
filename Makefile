@@ -1,31 +1,22 @@
 .DEFAULT_GOAL := check
 
-check:
-	pre-commit run -a
-
-changelog:
-	cz bump --changelog
-
 setup:
-	python -m pip install --upgrade pip
-	pip install poetry
-	poetry config virtualenvs.create false
-	poetry install --with=dev,deploy --no-root
+	uv sync --all-extras --group dev --group docs
+
+check:
+	uv run pre-commit run -a
 
 format:
-	docformatter --config pyproject.toml --in-place torchdyno
-	black --config=pyproject.toml torchdyno
-	pycln --config=pyproject.toml torchdyno
-	isort torchdyno
+	uv run docformatter --config pyproject.toml --in-place torchdyno
+	uv run black --config=pyproject.toml torchdyno
+	uv run pycln --config=pyproject.toml torchdyno
+	uv run isort torchdyno
 
-build: format
-	poetry build -v --no-cache --format wheel
+test:
+	uv run pytest
 
-verify:
-	twine check --strict dist/*
+build:
+	uv build
 
-publish-test: build verify
-	poetry publish -r test-pypi --skip-existing -v
-
-publish: build verify
-	poetry publish --skip-existing -v
+changelog:
+	uv run cz bump --changelog
