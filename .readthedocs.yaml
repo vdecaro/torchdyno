@@ -7,10 +7,9 @@ build:
     python: "3.11"
   jobs:
     post_create_environment:
-      - pip install poetry
+      - pip install uv
     post_install:
-      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH poetry install --with docs
-      - pip install torch torchvision
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv pip install ".[datasets]" --group docs
 
 sphinx:
    configuration: docs/conf.py
