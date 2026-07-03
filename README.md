@@ -18,12 +18,32 @@ TorchDyno is a PyTorch-based library for the implementation of dynamical systems
 Here's the link to the documentation: [https://torchdyno.readthedocs.io/en/latest/](https://torchdyno.readthedocs.io/en/latest/)
 
 ## Installation
-First, **you must install the desired version of torch and torchvision**.
-To install TorchDyno and all its dependencies, you can run the following commands:
+
+TorchDyno depends on PyTorch but does not pin a specific build — install the
+`torch` (and, for the bundled vision dataset, `torchvision`) wheel that matches
+your platform/accelerator first, following the
+[official instructions](https://pytorch.org/get-started/locally/).
+
+Then install TorchDyno:
+
 ```bash
-
 pip install torchdyno
+```
 
+The bundled example datasets that need extra dependencies (SequentialMNIST →
+`torchvision`, HHAR → `pandas`) are available via the `datasets` extra:
+
+```bash
+pip install "torchdyno[datasets]"
+```
+
+### Development
+
+TorchDyno uses [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync --all-extras --group dev
+uv run pytest
 ```
 
 ## Credits
