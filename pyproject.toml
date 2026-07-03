@@ -31,9 +31,10 @@ dependencies = [
     "torch>=2.4",
     "numpy>=2.1.3",
     "scipy>=1.14.1",
-    # pandas/torchvision are TEMPORARILY core deps so `import torchdyno` keeps
-    # working at every commit. Task 4 moves them into a [datasets] extra once the
-    # lazy dataset imports (Task 3) are in place. Do not define that extra yet.
+]
+
+[project.optional-dependencies]
+datasets = [
     "pandas>=2.2.3",
     "torchvision>=0.19",
 ]
