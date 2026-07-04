@@ -72,6 +72,25 @@ class WrongShapeCore(SequenceCore):
         return CoreOutput(states=x[..., :2], final_state=None)
 
 
+class GradCore(SequenceCore):
+    """Differentiable core: states = x @ weight (grad flows). When
+    ``flows_grad`` is False it detaches, violating its own declaration."""
+
+    def __init__(self, flows_grad=True):
+        super().__init__()
+        self.input_size = 3
+        self.state_size = 3
+        self._flows_grad = flows_grad
+        self.weight = torch.nn.Parameter(torch.eye(3))
+        self.capabilities = _caps(differentiable=True)
+
+    def forward(self, x, *, state0=None, mask=None):
+        states = x @ self.weight
+        if not self._flows_grad:
+            states = states.detach()
+        return CoreOutput(states=states, final_state=states[-1])
+
+
 def test_conforms_returns_core_output_for_valid_core():
     core = EchoCore(supports_step=True)
     x = torch.randn(5, 2, 3)
@@ -112,3 +131,15 @@ def test_checks_layer_states_when_exposed():
     x = torch.randn(5, 2, 3)
     out = assert_core_conforms(core, x)
     assert out.layer_states is not None and len(out.layer_states) == 1
+
+
+def test_conforms_differentiable_core():
+    core = GradCore(flows_grad=True)
+    assert_core_conforms(core, torch.randn(5, 2, 3))
+
+
+def test_rejects_non_differentiable_states():
+    # Declares differentiable=True but detaches states -> must be rejected.
+    core = GradCore(flows_grad=False)
+    with pytest.raises(AssertionError):
+        assert_core_conforms(core, torch.randn(5, 2, 3))
