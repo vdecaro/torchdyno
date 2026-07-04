@@ -1,5 +1,4 @@
 import logging
-from copy import deepcopy
 from typing import (
     Callable,
     List,
@@ -158,83 +157,6 @@ class Reservoir(Module):
     def clear_state_hook(self) -> None:
         """Restore the default per-timestep state computation."""
         self._state_hook = None
-
-    def merge_reservoirs(
-        self,
-        others: Union["Reservoir", List["Reservoir"]],
-        joint_scaling: Optional[float] = None,
-        coupled: bool = False,
-        independent_inputs: bool = False,
-    ) -> "Reservoir":
-        """Merges two reservoirs into a single reservoir."""
-        if self.net_gain_and_bias:
-            raise ValueError("Cannot merge reservoirs with net gain and bias")
-        if not isinstance(others, list):
-            others = [others]
-
-        new_reservoir = deepcopy(self)
-        if independent_inputs:
-            new_insize = sum([other.input_size for other in others]) + self.input_size
-        else:
-            new_insize = self.input_size
-        new_hsize = sum([other.hidden_size for other in others]) + self.hidden_size
-
-        W_in = torch.zeros(new_hsize, new_insize)
-        if independent_inputs:
-            W_in[: self.hidden_size, : self.input_size] = self.W_in.data
-            curr_inoffset = self.input_size
-            curr_hoffset = self.hidden_size
-            for other in others:
-                W_in[
-                    curr_hoffset : curr_hoffset + other.hidden_size,
-                    curr_inoffset : curr_inoffset + other.input_size,
-                ] = other.W_in.data
-                curr_hoffset += other.hidden_size
-                curr_inoffset += other.input_size
-        else:
-            W_in[: self.hidden_size] = self.W_in.data
-            curr_offset = self.hidden_size
-            for other in others:
-                W_in[curr_offset : curr_offset + other.hidden_size] = other.W_in.data
-                curr_offset += other.hidden_size
-
-        if coupled:
-            W_hat = torch.empty(new_hsize, new_hsize).uniform_(-1, 1)
-        else:
-            W_hat = torch.zeros(new_hsize, new_hsize)
-
-        W_hat[: self.hidden_size, : self.hidden_size] = self.W_hat.data
-        curr_offset = self.hidden_size
-        for other in others:
-            W_hat[
-                curr_offset : curr_offset + other.hidden_size,
-                curr_offset : curr_offset + other.hidden_size,
-            ] = other.W_hat.data
-            curr_offset += other.hidden_size
-
-        if coupled:
-            W_hat = initializers.rescale(
-                W_hat,
-                "spectral",
-                joint_scaling if joint_scaling is not None else self.rho.data,
-            )
-
-        new_reservoir.b = None
-        if any([other.b is not None for other in others]) or self.b is not None:
-            new_reservoir.b = Parameter(torch.zeros(new_hsize))
-            if self.b is not None:
-                new_reservoir.b.data[: self.hidden_size] = self.b.data
-            curr_offset = self.hidden_size
-            for other in others:
-                if other.b is not None:
-                    new_reservoir.b.data[
-                        curr_offset : curr_offset + other.hidden_size
-                    ] = other.b.data
-                curr_offset += other.hidden_size
-
-        new_reservoir.W_in.data = W_in
-        new_reservoir.W_hat.data = W_hat
-        return new_reservoir
 
     @property
     def input_size(self) -> int:
