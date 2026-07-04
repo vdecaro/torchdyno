@@ -35,7 +35,7 @@ class ModelCard:
     default_config: Mapping[str, Any]
 
 
-@dataclass
+@dataclass(frozen=True)
 class _CoreReg:
     builder: Callable[..., Any]
     card: ModelCard
@@ -131,10 +131,15 @@ def get_card(name: str) -> ModelCard:
 
 def render_catalog() -> str:
     """Render the registered cores as a markdown catalog string."""
+    import torch
+
     lines = ["# TorchDyno model catalog", ""]
     for name in list_cores():
         card = _CORES[name].card
-        caps = create_core(name).capabilities
+        # Building the core to read its live capabilities must not perturb the
+        # global RNG (reservoir/assembly inits draw from it).
+        with torch.random.fork_rng():
+            caps = create_core(name).capabilities
         adapters = f" | adapters: {', '.join(card.adapters)}" if card.adapters else ""
         lines += [
             f"## {card.name}  ({card.family})",

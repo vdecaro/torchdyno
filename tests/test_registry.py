@@ -1,8 +1,10 @@
 import pytest
 import torch
+from torch import nn
 
 import torchdyno  # noqa: F401  (populates the registry)
 from torchdyno import (
+    SequenceModel,
     create_core,
     create_learner,
     create_head,
@@ -12,8 +14,12 @@ from torchdyno import (
     get_card,
     render_catalog,
 )
+from torchdyno.heads import RegressionHead
 from torchdyno.models.base import SequenceCore
+from torchdyno.optim import RidgeRegression, IntrinsicPlasticity
 from torchdyno.testing import assert_core_conforms
+from torchdyno.training import BackpropTrainer
+from torchdyno.training.base import FitResult
 
 CORE_NAMES = ["esn", "scn", "adadiag"]
 
@@ -69,15 +75,6 @@ def test_render_catalog_covers_all_cores():
         assert name in md
 
 
-from torch import nn
-
-from torchdyno import SequenceModel
-from torchdyno.heads import RegressionHead
-from torchdyno.optim import RidgeRegression, IntrinsicPlasticity
-from torchdyno.training import BackpropTrainer
-from torchdyno.training.base import FitResult
-
-
 def _tiny_regression_loader(input_size, seed=0):
     g = torch.Generator().manual_seed(seed)
     x = torch.randn(30, 4, input_size, generator=g)
@@ -101,8 +98,10 @@ def test_admitted_learner_runs(core_name, learner_name):
     core = create_core(core_name)
     model = SequenceModel(core, RegressionHead(core.state_size, 1))
     learner = _build_learner(learner_name)
+    before = model.head.weight.detach().clone()
     result = learner.fit(model, _tiny_regression_loader(core.input_size))
     assert isinstance(result, FitResult)
+    assert not torch.allclose(model.head.weight, before)
 
 
 def test_esn_admits_ip_adapter():
@@ -113,6 +112,7 @@ def test_esn_admits_ip_adapter():
     res.train()
     ip = IntrinsicPlasticity(learning_rate=0.01, mu=0.0, sigma=0.1)
     ip.compile(res)
+    a0 = res.net_a.detach().clone()
     x = torch.randn(20, 4, core.input_size)
     for _ in range(3):
         res(x)
@@ -120,3 +120,4 @@ def test_esn_admits_ip_adapter():
         ip.step()
     ip.detach()
     assert not ip.compiled
+    assert not torch.allclose(res.net_a, a0)
