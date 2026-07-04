@@ -44,8 +44,8 @@ def test_validation_selects_l2():
     train = _reconstruction_data(seed=0)
     val = _reconstruction_data(seed=1)
 
-    def mse(target, pred):
-        return torch.mean((target - pred) ** 2).item()
+    def mse(pred, target):
+        return torch.mean((pred - target) ** 2).item()
 
     learner = RidgeRegression(l2=[1e-8, 1e-6, 1e-2, 1.0], score_fn=mse, mode="min")
     result = learner.fit(model, train, val)

@@ -70,3 +70,20 @@ def test_accepts_optimizer_callable():
     )
     result = trainer.fit(model, _classification_data())
     assert len(result.history["train_loss"]) == 3
+
+
+def test_score_fn_receives_pred_then_target():
+    model = _model()
+    train = _classification_data(seed=0)
+    val = _classification_data(seed=1)
+    seen = {}
+
+    def probe(pred, target):
+        seen["pred_ndim"] = pred.ndim
+        seen["target_ndim"] = target.ndim
+        return 0.0
+
+    BackpropTrainer(
+        loss_fn=torch.nn.CrossEntropyLoss(), epochs=1, score_fn=probe
+    ).fit(model, train, val)
+    assert seen["pred_ndim"] == 2 and seen["target_ndim"] == 1

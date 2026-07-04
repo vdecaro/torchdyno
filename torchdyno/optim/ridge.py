@@ -30,7 +30,7 @@ class RidgeRegression:
             (requires ``score_fn`` + ``mode`` + a ``val`` loader).
         washout: number of leading rows to skip when accumulating the ridge
             matrices (transient discard).
-        score_fn: ``score_fn(target, pred) -> float`` used to rank L2 candidates
+        score_fn: ``score_fn(pred, target) -> float`` used to rank L2 candidates
             on the validation set.
         mode: ``"min"`` or ``"max"`` — whether the best score is smallest or
             largest.
@@ -66,7 +66,7 @@ class RidgeRegression:
                 train_loader=train,
                 eval_loader=val,
                 l2_values=l2_values,
-                score_fn=self.score_fn,
+                score_fn=lambda target, pred: self.score_fn(pred, target),
                 mode=self.mode,
                 preprocess_fn=preprocess,
                 skip_first_n=self.washout,
