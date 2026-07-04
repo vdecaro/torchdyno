@@ -2,6 +2,6 @@
 
 from . import initializers
 from . import esn
-from . import rnn_assembly
+from . import assembly
 
-__all__ = ["initializers", "esn", "rnn_assembly"]
+__all__ = ["initializers", "esn", "assembly"]

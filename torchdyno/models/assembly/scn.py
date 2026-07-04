@@ -1,6 +1,6 @@
 """SCNCore: a block-diagonal contractive assembly (Sparse Combo Net baseline).
 
-Salvages the legacy ``RNNAssembly`` dynamics onto the SequenceCore contract:
+Salvages the earlier block-diagonal Euler dynamics onto the SequenceCore contract:
 a fixed Euler step over a block-diagonal recurrence coupled by a skew-symmetric
 matrix. With ``constrained_blocks="fixed"`` the block weights are frozen and
 only the couplings (and the external readout) train — the original SCN of
@@ -32,7 +32,7 @@ from torchdyno.models.base import (
     CoreOutput,
     SequenceCore,
 )
-from torchdyno.models.rnn_assembly import BlockDiagonal
+from torchdyno.models.assembly.block_diagonal import BlockDiagonal
 
 
 class SCNCore(SequenceCore):

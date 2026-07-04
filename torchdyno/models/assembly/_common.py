@@ -12,8 +12,10 @@ import torch
 from torch import Tensor
 
 from torchdyno.models import initializers
-from torchdyno.models.rnn_assembly import SkewAntisymmetricCoupling
-from torchdyno.models.rnn_assembly.skew_symm_coupling import get_coupling_indices
+from torchdyno.models.assembly.skew_symm_coupling import (
+    SkewAntisymmetricCoupling,
+    get_coupling_indices,
+)
 
 
 def build_coupling(

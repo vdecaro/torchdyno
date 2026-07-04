@@ -1,7 +1,6 @@
 import torch
 
-from torchdyno.models.assembly import build_coupling
-from torchdyno.models.rnn_assembly import SkewAntisymmetricCoupling
+from torchdyno.models.assembly import build_coupling, SkewAntisymmetricCoupling
 
 
 def test_returns_skew_coupling_module():
