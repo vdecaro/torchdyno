@@ -2,5 +2,6 @@
 
 from .base import Head
 from .regression import RegressionHead
+from .classification import ClassificationHead
 
-__all__ = ["Head", "RegressionHead"]
+__all__ = ["Head", "RegressionHead", "ClassificationHead"]
