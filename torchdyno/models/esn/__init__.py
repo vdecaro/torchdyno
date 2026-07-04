@@ -2,5 +2,6 @@
 
 from .reservoir import Reservoir
 from .esn import EchoStateNetwork
+from .core import ESNCore
 
-__all__ = ["Reservoir", "EchoStateNetwork"]
+__all__ = ["Reservoir", "EchoStateNetwork", "ESNCore"]
