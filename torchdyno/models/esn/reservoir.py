@@ -1,7 +1,6 @@
 import logging
 from typing import (
     Callable,
-    List,
     Optional,
     Union,
 )
