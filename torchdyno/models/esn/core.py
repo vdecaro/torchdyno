@@ -1,6 +1,6 @@
 """ESNCore: a stack of frozen reservoirs exposed as a SequenceCore.
 
-Mirrors the reservoir-stacking behavior of the legacy ``EchoStateNetwork``
+Mirrors the classic Echo State Network reservoir-stacking behavior
 (each layer is chained into the next; ``"stacked"`` reads out the last layer,
 ``"multi"``/``"parallel"`` concatenate all layers) but exposes it through the
 :class:`SequenceCore` contract instead of owning a readout or training.
