@@ -108,7 +108,7 @@ class Reservoir(Module):
                 initializers.zeros((hidden_size,)), requires_grad=True
             )
 
-        self._aux_fwd_comp: Optional[Callable[..., Generator]] = None
+        self._state_hook: Optional[Callable[..., Generator]] = None
 
     @torch.no_grad()
     def forward(
@@ -120,7 +120,7 @@ class Reservoir(Module):
         if initial_state is None:
             initial_state = torch.zeros(self.hidden_size).to(self.W_hat)
         _fwd_comp = (
-            self._state_comp if self._aux_fwd_comp is None else self._aux_fwd_comp
+            self._state_comp if self._state_hook is None else self._state_hook
         )
 
         embeddings = torch.stack(
@@ -144,6 +144,20 @@ class Reservoir(Module):
             h_t = torch.tanh(in_signal_t)
             state = (1 - self.alpha) * state + self.alpha * h_t
             yield state if mask is None else mask * state
+
+    def register_state_hook(self, hook: Callable[..., Generator]) -> None:
+        """Override the per-timestep state computation used by ``forward``.
+
+        ``hook`` is a callable ``(input, initial_state, mask) -> generator``
+        yielding one state per timestep, exactly like :meth:`_state_comp`. This
+        is the supported seam for core-modifying adapters (e.g. Intrinsic
+        Plasticity) to wrap the recurrence without touching private state.
+        """
+        self._state_hook = hook
+
+    def clear_state_hook(self) -> None:
+        """Restore the default per-timestep state computation."""
+        self._state_hook = None
 
     def merge_reservoirs(
         self,

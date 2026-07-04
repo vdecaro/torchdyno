@@ -73,14 +73,14 @@ class IntrinsicPlasticity:
             )
 
         self._reservoir = reservoir
-        self._reservoir._aux_fwd_comp = self._ip_state_comp()
+        self._reservoir.register_state_hook(self._ip_state_comp())
 
         self._opt = torch.optim.SGD(self._reservoir.parameters(), self._lr)
         self.compiled = True
 
     def detach(self):
         if self.compiled:
-            self._reservoir._aux_fwd_comp = None
+            self._reservoir.clear_state_hook()
             self._reservoir = None
             self.compiled = False
 
