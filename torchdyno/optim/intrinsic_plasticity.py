@@ -9,9 +9,10 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torchdyno.models.esn import Reservoir
+from torchdyno.optim.adapters import CoreAdapter
 
 
-class IntrinsicPlasticity:
+class IntrinsicPlasticity(CoreAdapter):
     """Intrinsic Plasticity optimizer.
 
     The Intrinsic Plasticity optimizer is a learning rule that modifies the gain and
