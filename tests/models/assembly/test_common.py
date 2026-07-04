@@ -44,3 +44,11 @@ def test_accepts_callable_initializer():
     coupling = build_coupling([2, 2], coupling_topology=[(0, 1)], coupling_block_init=init_fn)
     assert calls["n"] == 1  # one block for the single pair
     assert isinstance(coupling, SkewAntisymmetricCoupling)
+
+
+def test_accepts_non_orthogonal_string_initializer():
+    # A str initializer whose 2nd positional arg is NOT dtype (e.g. "diagonal"
+    # has min_val there) must still work because dtype is passed by keyword.
+    coupling = build_coupling([3, 3], coupling_topology=[(0, 1)], coupling_block_init="diagonal")
+    L = coupling.couplings
+    assert torch.allclose(L + L.T, torch.zeros_like(L), atol=1e-6)

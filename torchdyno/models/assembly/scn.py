@@ -66,7 +66,7 @@ class SCNCore(SequenceCore):
             block_init_fn: Callable[..., Tensor] = getattr(initializers, block_init)
         else:
             block_init_fn = block_init
-        blocks = [block_init_fn((b, b), dtype) for b in block_sizes]
+        blocks = [block_init_fn((b, b), dtype=dtype) for b in block_sizes]
         self.blocks = BlockDiagonal(blocks=blocks, constrained=constrained_blocks)
 
         self.couplings = build_coupling(

@@ -43,6 +43,6 @@ def build_coupling(
 
     indices = get_coupling_indices(block_sizes, coupling_topology)
     coupling_blocks = [
-        init_fn((block_sizes[i], block_sizes[j]), dtype) for i, j in indices
+        init_fn((block_sizes[i], block_sizes[j]), dtype=dtype) for i, j in indices
     ]
     return SkewAntisymmetricCoupling(block_sizes, coupling_blocks, indices)

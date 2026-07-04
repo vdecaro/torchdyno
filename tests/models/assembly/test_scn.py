@@ -57,3 +57,9 @@ def test_states_finite_over_long_sequence():
     torch.manual_seed(0)
     out = _core(block_sizes=[8, 8])(torch.randn(300, 2, 2))
     assert torch.isfinite(out.states).all()
+
+
+def test_accepts_non_orthogonal_block_init():
+    core = SCNCore(input_size=2, block_sizes=[3, 3], coupling_topology=[(0, 1)], block_init="diagonal")
+    out = core(torch.randn(5, 2, 2))
+    assert out.states.shape == (5, 2, 6)
