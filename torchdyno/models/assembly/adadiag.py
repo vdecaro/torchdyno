@@ -28,6 +28,7 @@ from torchdyno.models.base import (
     CoreOutput,
     SequenceCore,
 )
+from torchdyno.registry import ModelCard, register_core
 
 
 class FrequencyGate(nn.Module):
@@ -58,6 +59,19 @@ class FrequencyGate(nn.Module):
         return self.lo + (self.hi - self.lo) * torch.sigmoid(logits)
 
 
+_ADADIAG_CARD = ModelCard(
+    name="adadiag",
+    family="assembly",
+    paper="Ceni, A., De Caro, V., Bacciu, D., & Gallicchio, C. Sparse Assemblies of Recurrent Neural Networks with Stability Guarantees.",
+    description="A sparse assembly of contractive-by-design diagonal RNN modules with learnable per-neuron frequencies, coupled by skew-symmetric blocks; trained end-to-end by backprop.",
+    admits=("backprop",),
+    adapters=(),
+    tasks=("forecast", "classify"),
+    default_config={"input_size": 1, "block_sizes": [8, 8], "coupling_topology": "ring"},
+)
+
+
+@register_core("adadiag", card=_ADADIAG_CARD)
 class AdaDiagCore(SequenceCore):
     """A sparse assembly of contractive diagonal RNN modules (AdaDiag, eq. 9).
 

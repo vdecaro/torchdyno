@@ -9,10 +9,12 @@ from torch import (
 )
 
 from torchdyno.heads.base import Head
+from torchdyno.registry import register_head
 
 _POOLS = ("last", "mean")
 
 
+@register_head("classification")
 class ClassificationHead(Head):
     """Pool a state sequence over time, then apply a linear classifier.
 

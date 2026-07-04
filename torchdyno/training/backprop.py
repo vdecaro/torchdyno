@@ -15,6 +15,7 @@ from typing import (
 import torch
 from torch import nn
 
+from torchdyno.registry import register_learner
 from torchdyno.training.base import FitResult
 
 
@@ -32,6 +33,7 @@ def _build_optimizer(
     raise ValueError(f"Unknown optimizer: {optimizer!r}. Use 'adam', 'sgd', or a callable.")
 
 
+@register_learner("backprop")
 class BackpropTrainer:
     """Train a model by backpropagation over its parameters.
 

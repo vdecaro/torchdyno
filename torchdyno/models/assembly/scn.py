@@ -33,8 +33,21 @@ from torchdyno.models.base import (
     SequenceCore,
 )
 from torchdyno.models.assembly.block_diagonal import BlockDiagonal
+from torchdyno.registry import ModelCard, register_core
+
+_SCN_CARD = ModelCard(
+    name="scn",
+    family="assembly",
+    paper="Kozachkov, L., Ennis, M., & Slotine, J.-J. (2022). RNNs of RNNs: Recursive Construction of Stable Assemblies of Recurrent Neural Networks. NeurIPS.",
+    description="A block-diagonal contractive assembly integrated with a fixed Euler step; the SCN baseline AdaDiag is compared against.",
+    admits=("backprop",),
+    adapters=(),
+    tasks=("forecast", "classify"),
+    default_config={"input_size": 1, "block_sizes": [8, 8], "coupling_topology": "ring"},
+)
 
 
+@register_core("scn", card=_SCN_CARD)
 class SCNCore(SequenceCore):
     """A block-diagonal contractive assembly integrated with a fixed Euler step."""
 

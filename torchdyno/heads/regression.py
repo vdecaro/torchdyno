@@ -9,8 +9,10 @@ from torch import (
 )
 
 from torchdyno.heads.base import Head
+from torchdyno.registry import register_head
 
 
+@register_head("regression")
 class RegressionHead(Head):
     """A per-timestep linear readout: ``states @ weight``.
 

@@ -19,9 +19,11 @@ from torchdyno.optim.ridge_regression import (
     fit_and_validate_readout,
     fit_readout,
 )
+from torchdyno.registry import register_learner
 from torchdyno.training.base import FitResult
 
 
+@register_learner("ridge")
 class RidgeRegression:
     """Fit a linear readout in closed form (optionally selecting L2 on a val set).
 

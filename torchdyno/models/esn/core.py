@@ -28,10 +28,23 @@ from torchdyno.models.base import (
     SequenceCore,
 )
 from torchdyno.models.esn.reservoir import Reservoir
+from torchdyno.registry import ModelCard, register_core
 
 _ARCH_TYPES = ("stacked", "multi", "parallel")
 
+_ESN_CARD = ModelCard(
+    name="esn",
+    family="reservoir",
+    paper="Jaeger, H. (2001). The 'echo state' approach to analysing and training recurrent neural networks. GMD Report 148.",
+    description="A leaky-integrator Echo State Network: a stack of frozen random reservoirs read out by a trained linear head.",
+    admits=("ridge",),
+    adapters=("ip",),
+    tasks=("forecast", "classify"),
+    default_config={"input_size": 1, "layer_sizes": [32]},
+)
 
+
+@register_core("esn", card=_ESN_CARD)
 class ESNCore(SequenceCore):
     """A chain of Echo State Network reservoirs as a :class:`SequenceCore`."""
 
