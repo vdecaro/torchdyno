@@ -5,6 +5,7 @@ from . import models
 from . import optim
 from . import training
 from . import heads
+from . import metrics
 from .model import SequenceModel
 from .registry import (
     ModelCard,
@@ -31,6 +32,7 @@ __all__ = [
     "optim",
     "training",
     "heads",
+    "metrics",
     "SequenceModel",
     "ModelCard",
     "create_core",
