@@ -15,11 +15,7 @@ class _ClassificationTask(Task):
     def __init__(self, num_classes: int, primary: str = "accuracy"):
         self.num_classes = num_classes
         self._metrics = {"accuracy": Accuracy(), "macro_f1": MacroF1()}
-        if primary not in self._metrics:
-            raise ValueError(
-                f"Unknown primary metric {primary!r}. Choose from {sorted(self._metrics)}."
-            )
-        self._primary = self._metrics[primary]
+        self._primary = self._select_primary(self._metrics, primary)
 
     def metrics(self, pred: Tensor, target: Tensor) -> Dict[str, float]:
         return {name: metric(pred, target) for name, metric in self._metrics.items()}

@@ -1,9 +1,24 @@
+import pytest
 import torch
+from torch import nn
 
 from torchdyno import get_rng_state, seed_all, set_rng_state, SequenceModel
 from torchdyno.heads import RegressionHead
+from torchdyno.models.assembly import SCNCore
 from torchdyno.models.esn import ESNCore
 from torchdyno.optim import RidgeRegression
+from torchdyno.training import BackpropTrainer
+
+
+@pytest.fixture(autouse=True)
+def _restore_determinism():
+    was = torch.are_deterministic_algorithms_enabled()
+    cudnn_d = torch.backends.cudnn.deterministic
+    cudnn_b = torch.backends.cudnn.benchmark
+    yield
+    torch.use_deterministic_algorithms(was)
+    torch.backends.cudnn.deterministic = cudnn_d
+    torch.backends.cudnn.benchmark = cudnn_b
 
 
 def test_seed_all_makes_runs_bit_identical():
@@ -37,5 +52,15 @@ def test_ridge_fit_captures_rng_in_fitresult():
     model = SequenceModel(core, RegressionHead(core.state_size, 1))
     x = torch.randn(30, 4, 1)
     result = RidgeRegression(l2=1e-6).fit(model, [(x, x.clone())])
+    assert result.rng is not None
+    assert {"python", "numpy", "torch"} <= set(result.rng)
+
+
+def test_backprop_fit_captures_rng_in_fitresult():
+    torch.manual_seed(0)
+    core = SCNCore(input_size=1, block_sizes=[8, 8], coupling_topology="ring")
+    model = SequenceModel(core, RegressionHead(core.state_size, 1))
+    x = torch.randn(20, 4, 1)
+    result = BackpropTrainer(loss_fn=nn.MSELoss(), epochs=2).fit(model, [(x, x.clone())])
     assert result.rng is not None
     assert {"python", "numpy", "torch"} <= set(result.rng)

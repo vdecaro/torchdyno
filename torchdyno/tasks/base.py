@@ -25,3 +25,11 @@ class Task(ABC):
     @property
     @abstractmethod
     def primary(self) -> Metric: ...
+
+    def _select_primary(self, metrics: Dict[str, "Metric"], primary: str) -> "Metric":
+        """Validate ``primary`` against ``metrics`` and return the chosen Metric."""
+        if primary not in metrics:
+            raise ValueError(
+                f"Unknown primary metric {primary!r}. Choose from {sorted(metrics)}."
+            )
+        return metrics[primary]

@@ -12,6 +12,10 @@ def to_indices(pred: Tensor, target: Tensor) -> Tensor:
 
     If ``target`` has the same shape as ``pred`` (one-hot logits/probabilities),
     argmax the last dim; otherwise cast the existing indices to long.
+
+    Note: an *index* target must not have the same shape as ``pred`` (else it is
+    treated as one-hot and argmaxed). The shipped tasks never collide:
+    ``(B,)`` vs ``(B,C)`` and ``(T,B)`` vs ``(T,B,C)``.
     """
     if target.shape == pred.shape:
         target = target.argmax(dim=-1)

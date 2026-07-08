@@ -59,6 +59,20 @@ def test_macro_f1_perfect_and_known():
     assert (MacroF1().mode, MacroF1().name) == ("max", "macro_f1")
 
 
+def test_macro_f1_nontrivial_case():
+    # argmax(logits) = [0, 0, 1, 2, 2]; target = [0, 1, 1, 2, 0]
+    # per-class F1: class0=1/2, class1=2/3, class2=2/3 -> macro = 11/18
+    logits = torch.tensor([
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+    ])
+    target = torch.tensor([0, 1, 1, 2, 0])
+    assert MacroF1()(logits, target) == pytest.approx(11 / 18)
+
+
 def test_to_indices_argmaxes_one_hot_only():
     pred = torch.zeros(2, 3)
     onehot = torch.tensor([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])

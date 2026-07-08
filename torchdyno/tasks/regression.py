@@ -19,11 +19,7 @@ class Regression(Task):
 
     def __init__(self, primary: str = "nrmse"):
         self._metrics = {"nrmse": NRMSE(), "mse": MSE(), "mae": MAE()}
-        if primary not in self._metrics:
-            raise ValueError(
-                f"Unknown primary metric {primary!r}. Choose from {sorted(self._metrics)}."
-            )
-        self._primary = self._metrics[primary]
+        self._primary = self._select_primary(self._metrics, primary)
 
     def loss(self, pred: Tensor, target: Tensor) -> Tensor:
         return torch.mean((pred - target) ** 2)
