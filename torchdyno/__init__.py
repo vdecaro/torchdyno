@@ -8,6 +8,7 @@ from . import heads
 from . import metrics
 from . import tasks
 from .model import SequenceModel
+from .reproducibility import seed_all, get_rng_state, set_rng_state
 from .registry import (
     ModelCard,
     create_core,
@@ -36,6 +37,9 @@ __all__ = [
     "metrics",
     "tasks",
     "SequenceModel",
+    "seed_all",
+    "get_rng_state",
+    "set_rng_state",
     "ModelCard",
     "create_core",
     "create_learner",

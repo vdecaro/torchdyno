@@ -16,6 +16,7 @@ import torch
 from torch import nn
 
 from torchdyno.registry import register_learner
+from torchdyno.reproducibility import get_rng_state
 from torchdyno.training.base import FitResult
 
 
@@ -62,6 +63,7 @@ class BackpropTrainer:
         self.score_fn = score_fn
 
     def fit(self, model: nn.Module, train: Any, val: Optional[Any] = None) -> FitResult:
+        rng = get_rng_state()
         opt = _build_optimizer(self.optimizer, model.parameters(), self.lr)
         history: dict = {"train_loss": []}
         if val is not None and self.score_fn is not None:
@@ -88,4 +90,4 @@ class BackpropTrainer:
                         m += 1
                 history["val_score"].append(scores / max(m, 1))
 
-        return FitResult(history=history, best={"epochs": self.epochs}, extras={})
+        return FitResult(history=history, best={"epochs": self.epochs}, extras={}, rng=rng)

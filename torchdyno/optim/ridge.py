@@ -20,6 +20,7 @@ from torchdyno.optim.ridge_regression import (
     fit_readout,
 )
 from torchdyno.registry import register_learner
+from torchdyno.reproducibility import get_rng_state
 from torchdyno.training.base import FitResult
 
 
@@ -55,6 +56,7 @@ class RidgeRegression:
         self.store_matrices = store_matrices
 
     def fit(self, model: Any, train: Any, val: Optional[Any] = None) -> FitResult:
+        rng = get_rng_state()
         preprocess = lambda x: model.core(x).states  # noqa: E731
         device = next(model.parameters()).device
 
@@ -87,4 +89,4 @@ class RidgeRegression:
 
         model.head.set_weight(readout.T)
         extras = {"A": a, "B": b} if self.store_matrices else {}
-        return FitResult(history={}, best=best, extras=extras)
+        return FitResult(history={}, best=best, extras=extras, rng=rng)

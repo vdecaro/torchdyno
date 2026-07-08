@@ -27,11 +27,13 @@ class FitResult:
             empty for one-shot solvers.
         best: selected hyperparameters and scores (e.g. ``{"l2": 1e-6}``).
         extras: learner-specific artifacts (e.g. ridge ``A``/``B`` matrices).
+        rng: RNG state captured at fit start (for reproducing the run).
     """
 
     history: Dict[str, Any] = field(default_factory=dict)
     best: Dict[str, Any] = field(default_factory=dict)
     extras: Dict[str, Any] = field(default_factory=dict)
+    rng: Optional[Dict[str, Any]] = None
 
 
 @runtime_checkable
