@@ -80,19 +80,22 @@ def run(
 
     per_seed: List[Dict[str, float]] = []
     wall_time = 0.0
-    for seed in spec.seeds:
-        seed_all(seed)
-        model, learner = build(task)
-        t0 = time.perf_counter()
-        learner.fit(model, spec.dataset.train_loader)
-        wall_time += time.perf_counter() - t0
-        per_seed.append(_evaluate(model, spec.dataset.eval_loader, task))
+    try:
+        for seed in spec.seeds:
+            seed_all(seed)
+            model, learner = build(task)
+            t0 = time.perf_counter()
+            learner.fit(model, spec.dataset.train_loader)
+            wall_time += time.perf_counter() - t0
+            per_seed.append(_evaluate(model, spec.dataset.eval_loader, task))
 
-    if cuda:
-        peak = torch.cuda.max_memory_allocated()
-    else:
-        peak = tracemalloc.get_traced_memory()[1]
-        tracemalloc.stop()
+        if cuda:
+            peak = torch.cuda.max_memory_allocated()
+        else:
+            peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        if not cuda:
+            tracemalloc.stop()
 
     names = per_seed[0].keys()
     metrics = {name: _mean_std([d[name] for d in per_seed]) for name in names}
