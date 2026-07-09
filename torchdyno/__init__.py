@@ -7,8 +7,10 @@ from . import training
 from . import heads
 from . import metrics
 from . import tasks
+from . import benchmark
 from .model import SequenceModel
 from .reproducibility import seed_all, get_rng_state, set_rng_state
+from .benchmark import BenchmarkSpec, BenchmarkResult, run
 from .registry import (
     ModelCard,
     create_core,
@@ -36,10 +38,14 @@ __all__ = [
     "heads",
     "metrics",
     "tasks",
+    "benchmark",
     "SequenceModel",
     "seed_all",
     "get_rng_state",
     "set_rng_state",
+    "BenchmarkSpec",
+    "BenchmarkResult",
+    "run",
     "ModelCard",
     "create_core",
     "create_learner",
