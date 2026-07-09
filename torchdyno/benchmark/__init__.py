@@ -11,6 +11,7 @@ from .datasets import (
     wesad_benchmark,
     hhar_benchmark,
 )
+from .hpo import SearchResult, search
 
 __all__ = [
     "BenchmarkDataset",
@@ -24,4 +25,6 @@ __all__ = [
     "sequential_mnist_benchmark",
     "wesad_benchmark",
     "hhar_benchmark",
+    "SearchResult",
+    "search",
 ]
