@@ -49,6 +49,7 @@ def _evaluate(model: Any, loader: Any, task: Any) -> Dict[str, float]:
         for x, y in loader:
             preds.append(model(x))
             targets.append(y)
+    # time-first (T, B, .) outputs -> batch is dim 1; pooled (B, C) -> dim 0
     dim = 1 if preds[0].ndim == 3 else 0
     pred = torch.cat(preds, dim=dim)
     target = torch.cat(targets, dim=dim)

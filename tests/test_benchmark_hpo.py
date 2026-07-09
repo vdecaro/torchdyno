@@ -54,3 +54,13 @@ def test_unknown_strategy_raises():
     with pytest.raises(ValueError):
         search({"rho": [0.3]}, _build_from_config, _spec(),
                objective="nrmse", strategy="nope")
+
+
+def test_empty_space_raises():
+    with pytest.raises(ValueError):
+        search({}, _build_from_config, _spec(), objective="nrmse", strategy="grid")
+
+
+def test_unknown_objective_raises():
+    with pytest.raises(ValueError):
+        search({"rho": [0.9]}, _build_from_config, _spec(), objective="nope", strategy="grid")

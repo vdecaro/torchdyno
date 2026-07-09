@@ -3,7 +3,7 @@
 import itertools
 import random
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Literal, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 from torchdyno.benchmark.runner import BenchmarkResult, run
 from torchdyno.benchmark.spec import BenchmarkSpec
@@ -59,19 +59,23 @@ def search(
         configs = _sample(space, n_samples, seed)
     else:
         raise ValueError(f"Unknown strategy {strategy!r}. Use 'grid' or 'random'.")
-    if not configs:
+    if not space or not configs:
         raise ValueError("Empty search space.")
 
     trials: List[Tuple[Dict[str, Any], float]] = []
     best_config: Dict[str, Any] = {}
-    best_result: BenchmarkResult = None  # type: ignore[assignment]
+    best_result: Optional[BenchmarkResult] = None
     best_score = float("inf") if mode == "min" else float("-inf")
     for config in configs:
         result = run(spec, build_from_config(config), config=config)
+        if objective not in result.metrics:
+            raise ValueError(
+                f"Unknown objective {objective!r}. Available: {sorted(result.metrics)}."
+            )
         score = result.metrics[objective][0]
         trials.append((config, score))
         better = score < best_score if mode == "min" else score > best_score
-        if better:
+        if best_result is None or better:
             best_config, best_result, best_score = config, result, score
     return SearchResult(
         best_config=best_config,
