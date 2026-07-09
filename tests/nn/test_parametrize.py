@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 import torch.nn.utils.parametrize as P
@@ -17,12 +19,15 @@ def test_forward_magnitude_is_strictly_stable():
 def test_right_inverse_round_trips_from_surrogates():
     torch.manual_seed(0)
     nu = torch.randn(64)
-    theta = torch.rand(64) * 3.0     # phases in (0, 3), inside (-pi, pi]
+    theta = torch.rand(64) * (2 * math.pi)   # full LRU phase range [0, 2π)
     p = StableExpComplex()
     lam = p(nu, theta)
     nu2, theta2 = p.right_inverse(lam)
+    # ν round-trips exactly; θ recovers only modulo 2π (torch.angle ∈ (−π, π]),
+    # so verify the *eigenvalue* round-trips — the invariant that matters, since
+    # θ ranges over [0, 2π) in a real LRU and drifts freely during training.
     assert torch.allclose(nu, nu2, atol=1e-5)
-    assert torch.allclose(theta, theta2, atol=1e-5)
+    assert torch.allclose(p(nu2, theta2), lam, atol=1e-6)
 
 
 def test_register_parametrization_exposes_surrogates_only():

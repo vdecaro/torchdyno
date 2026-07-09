@@ -20,6 +20,8 @@ class StableExpComplex(nn.Module):
     def right_inverse(self, lam: Tensor) -> tuple[Tensor, Tensor]:
         tiny = torch.finfo(lam.real.dtype).tiny
         mag = lam.abs().clamp_min(tiny)
-        nu = torch.log(-torch.log(mag))
+        # Also guard the |λ|→1 tail: when exp(ν) underflows to 0, mag rounds to
+        # 1.0 and -log(mag)=0 would make the outer log -inf. clamp_min keeps ν finite.
+        nu = torch.log((-torch.log(mag)).clamp_min(tiny))
         theta = torch.angle(lam)
         return nu, theta
