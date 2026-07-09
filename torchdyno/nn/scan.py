@@ -23,7 +23,7 @@ def associative_scan(a: Tensor, b: Tensor) -> Tensor:
     shift = 1
     while shift < steps:
         # Bind old-tensor slices before rebinding a/b; both combines use them.
-        a_cur, a_prev = a[shift:], a[:-shift]            # right (current), left (earlier)
+        a_cur, a_prev = a[shift:], a[:-shift]  # right (current), left (earlier)
         b_cur, b_prev = b[shift:], b[:-shift]
         a = torch.cat([a[:shift], a_cur * a_prev], dim=0)
         b = torch.cat([b[:shift], a_cur * b_prev + b_cur], dim=0)

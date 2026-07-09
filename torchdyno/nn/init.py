@@ -1,10 +1,16 @@
 """Swappable initialization objects for recurrent cores."""
 
 import math
-from typing import Optional, Tuple
+from typing import (
+    Optional,
+    Tuple,
+)
 
 import torch
-from torch import Generator, Tensor
+from torch import (
+    Generator,
+    Tensor,
+)
 
 
 class Ring:
@@ -20,19 +26,25 @@ class Ring:
         max_phase: upper phase bound (radians).
     """
 
-    def __init__(self, r_min: float = 0.0, r_max: float = 1.0,
-                 max_phase: float = 2 * math.pi):
-        if not (0.0 <= r_min <= r_max):
-            raise ValueError(f"require 0 <= r_min <= r_max, got {r_min}, {r_max}.")
+    def __init__(
+        self, r_min: float = 0.0, r_max: float = 1.0, max_phase: float = 2 * math.pi
+    ):
+        if not (0.0 <= r_min <= r_max <= 1.0):
+            raise ValueError(f"require 0 <= r_min <= r_max <= 1, got {r_min}, {r_max}.")
         self.r_min = r_min
         self.r_max = r_max
         self.max_phase = max_phase
 
-    def __call__(self, n_modes: int, *, generator: Optional[Generator] = None,
-                 dtype: torch.dtype = torch.float32) -> Tuple[Tensor, Tensor]:
+    def __call__(
+        self,
+        n_modes: int,
+        *,
+        generator: Optional[Generator] = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> Tuple[Tensor, Tensor]:
         u1 = torch.rand(n_modes, generator=generator, dtype=dtype)
         u2 = torch.rand(n_modes, generator=generator, dtype=dtype)
         mag_sq = u1 * (self.r_max**2 - self.r_min**2) + self.r_min**2
-        nu = torch.log(-0.5 * torch.log(mag_sq))     # ν = log(−log|λ|)
+        nu = torch.log(-0.5 * torch.log(mag_sq))  # ν = log(−log|λ|)
         theta = self.max_phase * u2
         return nu, theta

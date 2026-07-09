@@ -8,17 +8,32 @@ emits the real-ified state ``[Re(h); Im(h)] ∈ ℝ^{2N}``.
 """
 
 import math
-from typing import Any, Optional, Tuple, Union
+from typing import (
+    Any,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import torch
 import torch.nn.utils.parametrize as P
-from torch import Tensor, nn
+from torch import (
+    Tensor,
+    nn,
+)
 
-from torchdyno.models.base import CoreCapabilities, CoreOutput, SequenceCore
+from torchdyno.models.base import (
+    CoreCapabilities,
+    CoreOutput,
+    SequenceCore,
+)
 from torchdyno.nn.init import Ring
 from torchdyno.nn.parametrize import StableExpComplex
 from torchdyno.nn.scan import associative_scan
-from torchdyno.registry import ModelCard, register_core
+from torchdyno.registry import (
+    ModelCard,
+    register_core,
+)
 
 _INITS = {"ring": Ring}
 
@@ -120,15 +135,15 @@ class LRUCore(SequenceCore):
         state0: Any = None,
         mask: Optional[Tensor] = None,
     ) -> CoreOutput:
-        lam = self.lambda_                                   # (N,) complex
-        B = self._input_map()                                # (N, input)
-        b = torch.einsum("tbi,ni->tbn", x.to(B.dtype), B)    # (T, B, N) complex
+        lam = self.lambda_  # (N,) complex
+        B = self._input_map()  # (N, input)
+        b = torch.einsum("tbi,ni->tbn", x.to(B.dtype), B)  # (T, B, N) complex
         if state0 is not None:
             b0 = b[:1] + lam.reshape(1, 1, -1) * state0.unsqueeze(0)
             b = torch.cat([b0, b[1:]], dim=0)
-        a = lam.reshape(1, 1, -1).expand_as(b)               # time-invariant a_t = λ
-        h = associative_scan(a, b)                           # (T, B, N) complex
-        states = torch.cat([h.real, h.imag], dim=-1)         # (T, B, 2N) real
+        a = lam.reshape(1, 1, -1).expand_as(b)  # time-invariant a_t = λ
+        h = associative_scan(a, b)  # (T, B, N) complex
+        states = torch.cat([h.real, h.imag], dim=-1)  # (T, B, 2N) real
         if mask is not None:
             states = mask * states
         return CoreOutput(states=states, final_state=h[-1])
@@ -138,5 +153,5 @@ class LRUCore(SequenceCore):
         B = self._input_map()
         b_t = torch.einsum("bi,ni->bn", x_t.to(B.dtype), B)  # (B, N) complex
         h = b_t if state is None else lam * state + b_t
-        emitted = torch.cat([h.real, h.imag], dim=-1)        # (B, 2N) real
+        emitted = torch.cat([h.real, h.imag], dim=-1)  # (B, 2N) real
         return emitted, h

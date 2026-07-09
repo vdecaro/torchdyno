@@ -1,7 +1,10 @@
 """Reparameterizations mapping unconstrained surrogates to effective params."""
 
 import torch
-from torch import Tensor, nn
+from torch import (
+    Tensor,
+    nn,
+)
 
 
 class StableExpComplex(nn.Module):
@@ -15,9 +18,11 @@ class StableExpComplex(nn.Module):
     """
 
     def forward(self, nu: Tensor, theta: Tensor) -> Tensor:
+        """Map real surrogates ``(ν, θ)`` to the effective complex eigenvalue ``λ``."""
         return torch.polar(torch.exp(-torch.exp(nu)), theta)
 
     def right_inverse(self, lam: Tensor) -> tuple[Tensor, Tensor]:
+        """Recover the ``(ν, θ)`` surrogates from an effective ``λ`` (θ modulo 2π)."""
         tiny = torch.finfo(lam.real.dtype).tiny
         mag = lam.abs().clamp_min(tiny)
         # Also guard the |λ|→1 tail: when exp(ν) underflows to 0, mag rounds to
