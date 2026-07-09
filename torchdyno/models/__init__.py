@@ -3,5 +3,6 @@
 from . import initializers
 from . import esn
 from . import assembly
+from . import ssm
 
-__all__ = ["initializers", "esn", "assembly"]
+__all__ = ["initializers", "esn", "assembly", "ssm"]
