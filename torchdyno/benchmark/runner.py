@@ -49,8 +49,9 @@ def _evaluate(model: Any, loader: Any, task: Any) -> Dict[str, float]:
         for x, y in loader:
             preds.append(model(x))
             targets.append(y)
-    pred = torch.cat(preds, dim=0)
-    target = torch.cat(targets, dim=0)
+    dim = 1 if preds[0].ndim == 3 else 0
+    pred = torch.cat(preds, dim=dim)
+    target = torch.cat(targets, dim=dim)
     return task.metrics(pred, target)
 
 
