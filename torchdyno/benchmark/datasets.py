@@ -3,11 +3,12 @@
 from typing import List, Literal, Optional
 
 import torch
+from torch.utils.data import ConcatDataset, DataLoader
 
 from torchdyno.benchmark.dataset import BenchmarkDataset
-from torchdyno.data.datasets import LorenzSystem, MemoryCapacityDataset
+from torchdyno.data.datasets import LorenzSystem, MemoryCapacityDataset, WESADDataset
 from torchdyno.data.utils import seq_collate_fn
-from torchdyno.tasks import Regression, SequenceClassification
+from torchdyno.tasks import DenseLabeling, Regression, SequenceClassification
 
 
 def _single_batch_loader(x: torch.Tensor, y: torch.Tensor):
@@ -79,4 +80,66 @@ def sequential_mnist_benchmark(
         task=SequenceClassification(num_classes=10),
         train_loader=DataLoader(train, batch_size=batch_size, collate_fn=collate),
         eval_loader=DataLoader(test, batch_size=batch_size, collate_fn=collate),
+    )
+
+
+def wesad_benchmark(
+    root: str,
+    train_pct: int = 50,
+    context: int = 0,
+    seq_length: int = 700,
+    batch_size: int = 32,
+) -> BenchmarkDataset:
+    """WESAD per-timestep stress classification (4 classes) over user groups."""
+    users = WESADDataset.USERS
+    train = ConcatDataset(
+        [
+            WESADDataset(root=root, user=u, context=context, seq_length=seq_length)
+            for u in users["train"][train_pct]
+        ]
+    )
+    ev = ConcatDataset(
+        [
+            WESADDataset(root=root, user=u, context=context, seq_length=seq_length)
+            for u in users["test"]
+        ]
+    )
+    collate = seq_collate_fn()
+    return BenchmarkDataset(
+        name="wesad",
+        task=DenseLabeling(num_classes=4),
+        train_loader=DataLoader(train, batch_size=batch_size, collate_fn=collate),
+        eval_loader=DataLoader(ev, batch_size=batch_size, collate_fn=collate),
+    )
+
+
+def hhar_benchmark(
+    root: str,
+    train_pct: int = 50,
+    context: int = 0,
+    seq_length: int = 200,
+    batch_size: int = 32,
+) -> BenchmarkDataset:
+    """HHAR per-timestep activity classification (6 classes) — needs the ``[datasets]`` extra."""
+    from torchdyno.data.datasets import HHARDataset  # pandas-gated import
+
+    users = HHARDataset.USERS
+    train = ConcatDataset(
+        [
+            HHARDataset(root=root, user=u, context=context, seq_length=seq_length)
+            for u in users["train"][train_pct]
+        ]
+    )
+    ev = ConcatDataset(
+        [
+            HHARDataset(root=root, user=u, context=context, seq_length=seq_length)
+            for u in users["test"]
+        ]
+    )
+    collate = seq_collate_fn()
+    return BenchmarkDataset(
+        name="hhar",
+        task=DenseLabeling(num_classes=6),
+        train_loader=DataLoader(train, batch_size=batch_size, collate_fn=collate),
+        eval_loader=DataLoader(ev, batch_size=batch_size, collate_fn=collate),
     )

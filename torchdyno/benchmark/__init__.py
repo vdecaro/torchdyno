@@ -8,6 +8,8 @@ from .datasets import (
     memory_capacity_benchmark,
     lorenz_benchmark,
     sequential_mnist_benchmark,
+    wesad_benchmark,
+    hhar_benchmark,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "memory_capacity_benchmark",
     "lorenz_benchmark",
     "sequential_mnist_benchmark",
+    "wesad_benchmark",
+    "hhar_benchmark",
 ]
