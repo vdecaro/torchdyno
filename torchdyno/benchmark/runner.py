@@ -70,13 +70,22 @@ def run(
 
     ``build(task) -> (model, learner)`` is called fresh after ``seed_all(seed)``
     each run, so each seed gets a freshly-initialized model.
+
+    ``config_hash`` covers the dataset name, seeds, task type, and ``config``
+    only — not the ``build`` closure. Pass a distinguishing ``config`` dict to
+    tell apart different models on the same dataset and seeds.
     """
+    if not spec.seeds:
+        raise ValueError("spec.seeds must be non-empty")
+
     task = spec.dataset.task
     cuda = torch.cuda.is_available()
+    started_trace = False
     if cuda:
         torch.cuda.reset_peak_memory_stats()
-    else:
+    elif not tracemalloc.is_tracing():
         tracemalloc.start()
+        started_trace = True
 
     per_seed: List[Dict[str, float]] = []
     wall_time = 0.0
@@ -94,7 +103,7 @@ def run(
         else:
             peak = tracemalloc.get_traced_memory()[1]
     finally:
-        if not cuda:
+        if started_trace:
             tracemalloc.stop()
 
     names = per_seed[0].keys()

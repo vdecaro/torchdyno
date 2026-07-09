@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torchdyno import SequenceModel
@@ -61,3 +62,8 @@ def test_config_hash_changes_with_seeds():
     h1 = run(BenchmarkSpec(ds, [0, 1]), _build).config_hash
     h2 = run(BenchmarkSpec(ds, [0, 1, 2]), _build).config_hash
     assert h1 != h2
+
+
+def test_run_empty_seeds_raises():
+    with pytest.raises(ValueError, match="seeds"):
+        run(BenchmarkSpec(dataset=_toy_dataset(), seeds=[]), _build)
