@@ -1,15 +1,18 @@
 import math
 
 import torch
-from torch import nn
 import torch.nn.utils.parametrize as P
+from torch import nn
 
-from torchdyno.nn.parametrize import StableExpComplex
+from torchdyno.nn.parametrize import (
+    NegExpComplex,
+    StableExpComplex,
+)
 
 
 def test_forward_magnitude_is_strictly_stable():
     torch.manual_seed(0)
-    nu = torch.randn(1000)          # any real ν
+    nu = torch.randn(1000)  # any real ν
     theta = torch.randn(1000)
     lam = StableExpComplex()(nu, theta)
     assert lam.is_complex()
@@ -19,7 +22,7 @@ def test_forward_magnitude_is_strictly_stable():
 def test_right_inverse_round_trips_from_surrogates():
     torch.manual_seed(0)
     nu = torch.randn(64)
-    theta = torch.rand(64) * (2 * math.pi)   # full LRU phase range [0, 2π)
+    theta = torch.rand(64) * (2 * math.pi)  # full LRU phase range [0, 2π)
     p = StableExpComplex()
     lam = p(nu, theta)
     nu2, theta2 = p.right_inverse(lam)
@@ -38,5 +41,36 @@ def test_register_parametrization_exposes_surrogates_only():
     P.register_parametrization(m, "lambda_", StableExpComplex())
     # Effective λ is complex and stable; stored parameters are the two real surrogates.
     assert m.lambda_.is_complex() and (m.lambda_.abs() < 1.0).all()
+    assert all(not p.is_complex() for p in m.parameters())
+    assert len(list(m.parameters())) == 2
+
+
+def test_negexp_real_part_is_negative():
+    torch.manual_seed(0)
+    log_re = torch.randn(1000)
+    im = torch.randn(1000)
+    A = NegExpComplex()(log_re, im)
+    assert A.is_complex()
+    assert (A.real < 0).all()
+
+
+def test_negexp_right_inverse_round_trips():
+    torch.manual_seed(0)
+    log_re = torch.randn(64)
+    im = torch.randn(64)
+    p = NegExpComplex()
+    A = p(log_re, im)
+    log_re2, im2 = p.right_inverse(A)
+    assert torch.allclose(log_re, log_re2, atol=1e-5)
+    assert torch.allclose(im, im2, atol=1e-5)
+
+
+def test_negexp_register_exposes_surrogates_only():
+    torch.manual_seed(0)
+    m = nn.Module()
+    log_re0, im0 = torch.randn(8), torch.randn(8)
+    m.A = nn.Parameter(torch.complex(-torch.exp(log_re0), im0))
+    P.register_parametrization(m, "A", NegExpComplex())
+    assert m.A.is_complex() and (m.A.real < 0).all()
     assert all(not p.is_complex() for p in m.parameters())
     assert len(list(m.parameters())) == 2

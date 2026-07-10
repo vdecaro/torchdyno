@@ -2,7 +2,10 @@
 
 from torchdyno.nn.discretize import zoh
 from torchdyno.nn.init import Ring
-from torchdyno.nn.parametrize import StableExpComplex
+from torchdyno.nn.parametrize import (
+    NegExpComplex,
+    StableExpComplex,
+)
 from torchdyno.nn.scan import associative_scan
 
-__all__ = ["associative_scan", "StableExpComplex", "Ring", "zoh"]
+__all__ = ["associative_scan", "NegExpComplex", "StableExpComplex", "Ring", "zoh"]

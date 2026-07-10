@@ -30,3 +30,22 @@ class StableExpComplex(nn.Module):
         nu = torch.log((-torch.log(mag)).clamp_min(tiny))
         theta = torch.angle(lam)
         return nu, theta
+
+
+class NegExpComplex(nn.Module):
+    """Map real surrogates ``(log_re, im)`` to a stable continuous eigenvalue.
+
+    ``A = −exp(log_re) + i·im`` so ``Re(A) = −exp(log_re) < 0`` for every real
+    ``log_re``. Continuous-time stability (``Re(A) < 0``) is thus a property of the
+    parameterization; ``.parameters()`` exposes only the two real surrogates. Use with
+    two originals via ``torch.nn.utils.parametrize.register_parametrization``.
+    """
+
+    def forward(self, log_re: Tensor, im: Tensor) -> Tensor:
+        """Map ``(log_re, im)`` to the effective continuous eigenvalue ``A``."""
+        return torch.complex(-torch.exp(log_re), im)
+
+    def right_inverse(self, a: Tensor) -> tuple[Tensor, Tensor]:
+        """Recover ``(log_re, im)`` from an effective ``A`` (exact; guards ``Re(A) → 0⁻``)."""
+        tiny = torch.finfo(a.real.dtype).tiny
+        return torch.log((-a.real).clamp_min(tiny)), a.imag
