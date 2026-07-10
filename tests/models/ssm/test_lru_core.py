@@ -1,17 +1,26 @@
+import math
+
 import pytest
 import torch
 
-from torchdyno.models.base import CoreOutput, SequenceCore
-from torchdyno.models.ssm.core import LRUCore
+from torchdyno.models.base import (
+    CoreOutput,
+    SequenceCore,
+)
+from torchdyno.models.ssm.lru import LRUCore
 from torchdyno.nn.init import Ring
-from torchdyno.registry import create_core, list_cores, render_catalog
+from torchdyno.registry import (
+    create_core,
+    list_cores,
+    render_catalog,
+)
 from torchdyno.testing import assert_core_conforms
 
 
 def test_is_sequence_core_and_state_size():
     core = LRUCore(input_size=2, n_modes=8)
     assert isinstance(core, SequenceCore)
-    assert core.state_size == 16          # 2 * n_modes
+    assert core.state_size == 16  # 2 * n_modes
 
 
 def test_forward_shapes_and_final_state():
@@ -105,3 +114,23 @@ def test_rejects_bad_sizes():
         LRUCore(input_size=0, n_modes=8)
     with pytest.raises(ValueError):
         LRUCore(input_size=1, n_modes=0)
+
+
+def test_reparent_preserves_init_under_seed():
+    # Guards the base extraction: a fixed generator must yield the SAME init as the
+    # original draw order (Ring's two rand() calls, then B's two randn() calls).
+    g = torch.Generator().manual_seed(1234)
+    core = LRUCore(input_size=2, n_modes=8, generator=g)
+
+    g2 = torch.Generator().manual_seed(1234)
+    u1 = torch.rand(8, generator=g2)
+    u2 = torch.rand(8, generator=g2)
+    b_re = torch.randn(8, 2, generator=g2) * (1.0 / math.sqrt(2))
+    b_im = torch.randn(8, 2, generator=g2) * (1.0 / math.sqrt(2))
+    nu = torch.log(-0.5 * torch.log(u1))  # Ring defaults r_min=0, r_max=1
+    theta = 2 * math.pi * u2
+
+    assert torch.allclose(core.parametrizations.lambda_.original0, nu, atol=1e-6)
+    assert torch.allclose(core.parametrizations.lambda_.original1, theta, atol=1e-6)
+    assert torch.allclose(core.B_re, b_re, atol=1e-6)
+    assert torch.allclose(core.B_im, b_im, atol=1e-6)

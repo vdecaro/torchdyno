@@ -1,6 +1,6 @@
 import torch
 
-from torchdyno.models.ssm.core import LRUCore
+from torchdyno.models.ssm.lru import LRUCore
 from torchdyno.testing import assert_core_conforms
 
 

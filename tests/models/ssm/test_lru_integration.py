@@ -2,7 +2,7 @@ import torch
 
 from torchdyno.heads import RegressionHead
 from torchdyno.model import SequenceModel
-from torchdyno.models.ssm.core import LRUCore
+from torchdyno.models.ssm.lru import LRUCore
 from torchdyno.nn.init import Ring
 from torchdyno.optim.ridge_regression import fit_readout
 from torchdyno.training.backprop import BackpropTrainer
@@ -11,8 +11,9 @@ from torchdyno.training.backprop import BackpropTrainer
 def test_frozen_lru_ridge_reconstructs_input():
     torch.manual_seed(0)
     # r_max=0.9 keeps memory moderate (mirrors the ESN rho=0.9 reconstruction test).
-    core = LRUCore(input_size=1, n_modes=64, trainable=False,
-                   init=Ring(r_min=0.0, r_max=0.9))
+    core = LRUCore(
+        input_size=1, n_modes=64, trainable=False, init=Ring(r_min=0.0, r_max=0.9)
+    )
     head = RegressionHead(core.state_size, 1)
     model = SequenceModel(core, head)
 
@@ -29,7 +30,7 @@ def test_frozen_lru_ridge_reconstructs_input():
     assert pred.shape == (T, B, 1)
     mse = torch.mean((pred - y) ** 2).item()
     var = torch.var(y).item()
-    assert mse < 0.5 * var           # fitted readout beats a mean predictor
+    assert mse < 0.5 * var  # fitted readout beats a mean predictor
 
 
 def test_trainable_lru_backprop_reduces_loss():
@@ -48,4 +49,4 @@ def test_trainable_lru_backprop_reduces_loss():
     result = trainer.fit(model, [(x, y)])
     losses = result.history["train_loss"]
     assert len(losses) == 40
-    assert losses[-1] < losses[0]    # backprop through the complex scan learns
+    assert losses[-1] < losses[0]  # backprop through the complex scan learns
