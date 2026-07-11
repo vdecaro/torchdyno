@@ -28,6 +28,7 @@ def test_frozen_states_finite_long_horizon():
     core = coRNNCore(input_size=1, hidden_size=32, trainable=False)
     out = core(torch.randn(500, 2, 1))
     assert torch.isfinite(out.states).all()
+    assert out.states.abs().max() < 50.0
 
 
 def test_trainable_default_is_true():

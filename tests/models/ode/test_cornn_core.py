@@ -122,3 +122,13 @@ def test_rejects_bad_args():
         coRNNCore(input_size=1, hidden_size=8, epsilon=-1.0)
     with pytest.raises(ValueError):
         coRNNCore(input_size=1, hidden_size=8, dt=0.0)
+
+
+def test_reproducible_with_generator():
+    g1 = torch.Generator().manual_seed(42)
+    g2 = torch.Generator().manual_seed(42)
+    c1 = coRNNCore(input_size=2, hidden_size=8, generator=g1)
+    c2 = coRNNCore(input_size=2, hidden_size=8, generator=g2)
+    assert torch.equal(c1.W, c2.W)
+    assert torch.equal(c1.W_z, c2.W_z)
+    assert torch.equal(c1.V, c2.V)
