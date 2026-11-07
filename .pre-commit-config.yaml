@@ -1,0 +1,54 @@
+---
+ci:
+  autofix_commit_msg: "style: Apply pre-commit.ci auto fixes"
+  autoupdate_commit_msg: "chore: Update pre-commit hooks"
+  autoupdate_schedule: weekly
+  submodules: false
+
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/pycqa/isort
+    rev: 10.0.0b2
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.19.3
+    hooks:
+      - id: commitizen
+      - id: commitizen-branch
+        stages:
+          - pre-push
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+        args: [--fix, --select, "F401"]
+        name: ruff pycln
+      - id: ruff-check
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.4.1
+    hooks:
+      - id: mypy
+        pass_filenames: false
+        args: [torchdyno]
+
+exclude: "examples/.*"

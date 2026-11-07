@@ -1,0 +1,52 @@
+{
+  "name": "TorchDyno",
+  "build": {
+    "context": "..",
+    "dockerfile": "Containerfile"
+  },
+  "runArgs": ["--network=host", "--name=torchdyno-dev"],
+  "remoteUser": "vscode",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "tamasfe.even-better-toml",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+
+        "python.testing.pytestEnabled": true,
+
+        "[python]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+
+        "ruff.nativeServer": "on",
+
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/bin/zsh"
+          }
+        }
+      }
+    }
+  },
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Docs / App Preview",
+      "onAutoForward": "notify"
+    }
+  }
+}

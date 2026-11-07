@@ -1,0 +1,193 @@
+[project]
+name = "torchdyno"
+version = "0.2.3"
+description = "A PyTorch-based library for dynamical systems."
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+
+authors = [{ name = "Valerio De Caro", email = "valerio@valeriodecaro.com" }]
+
+maintainers = [{ name = "Valerio De Caro", email = "valerio@valeriodecaro.com" }]
+
+dependencies = ["torch>=2.4"]
+
+[project.urls]
+Homepage = "https://github.com/vdecaro/torchdyno"
+Repository = "https://github.com/vdecaro/torchdyno"
+Documentation = "https://torchdyno.readthedocs.io/en/latest/"
+Changelog = "https://github.com/vdecaro/torchdyno/blob/main/CHANGELOG.md"
+
+
+# Dependency Groups
+[dependency-groups]
+dev = [
+    "commitizen>=4.19.3",
+    "isort>=9.0.2",
+    "mypy>=2.4.0",
+    "pre-commit>=4.7.0",
+    "ruff>=0.17.2",
+]
+
+test = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+]
+
+docs = [
+    "jinja2>=3.1.6",
+    "myst-parser>=5.1.0",
+    "pydata-sphinx-theme>=0.23.0",
+    "sphinx>=9.0.4; python_version < '3.12'",
+    "sphinx>=9.1.1; python_version >= '3.12' and python_version < '3.13'",
+    "sphinx>=9.2.0; python_version >= '3.13'",
+    "sphinx-autobuild>=2025.8.25",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-design>=0.7.0",
+    "sphinx-icon>=0.2.2",
+]
+
+# Build backend
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "."
+module-name = "torchdyno"
+
+[tool.uv]
+required-version = ">=0.13"
+
+# CPU wheels for CI and Read the Docs; users still get the default torch from PyPI
+[tool.uv.sources]
+torch = { index = "pytorch-cpu", marker = "sys_platform == 'linux'" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+
+# -------------------------
+# Third-party tool settings
+# -------------------------
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "uv"
+tag_format = "$version"
+bump_message = "chore(release): bump version $current_version → $new_version"
+update_changelog_on_bump = true
+version_files = [
+    "pyproject.toml:^version",
+    "torchdyno/__init__.py:__version__",
+    "CITATION.cff:version",
+]
+
+
+[tool.ruff]
+include = ["torchdyno/**/*.py", "tests/**/*.py"]
+extend-exclude = ["docs", "examples"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    # "I", # isort works better so far
+    "B",
+    "UP",
+    "SIM",
+    "C90",
+    "RUF",
+    "TCH",
+    "PL",
+    "ARG",
+    "D",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 20
+max-locals = 30
+max-branches = 15
+max-positional-args = 20
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 100
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-type-checking]
+strict = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "D",
+    "ARG005",
+    "B018",
+    "C901",
+    "PLR0915",
+    "PLR1711",
+    "PLR2004",
+    "PLW0108",
+    "RUF012",
+    "RUF100",
+    "TC003",
+    "UP037",
+]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 2
+filter_files = true
+skip = ["__init__.py"]
+
+[tool.mypy]
+python_version = "3.11"
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*"]
+ignore_missing_imports = true
+
+# --------------------------
+# Pytest and Coverage settings
+# --------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov --cov-report=xml --cov-report=term-missing -n auto"
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]
+
+[tool.coverage.run]
+branch = true
+source = ["torchdyno"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "raise NotImplementedError",
+]

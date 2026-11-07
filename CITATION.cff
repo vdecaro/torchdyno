@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use TorchDyno in your work or research project, please cite it as below."
+title: "TorchDyno: a PyTorch-based library for dynamical systems"
+version: 0.2.3
+url: "https://github.com/vdecaro/torchdyno"
+repository-code: "https://github.com/vdecaro/torchdyno"
+license: "MIT"
+authors:
+  - family-names: "De Caro"
+    given-names: "Valerio"
+    orcid: "https://orcid.org/0000-0002-5267-6614"

@@ -1,0 +1,28 @@
+---
+name: Bug report
+about: Create a report to help us improve TorchDyno
+title: "[BUG] <Short description>"
+labels: bug
+assignees: ''
+
+---
+
+## Describe the bug
+A clear and concise description of what the bug is.
+
+## Environment
+- OS: Ubuntu/MacOS
+- Python version:  3.11/3.12/3.13/3.14
+- TorchDyno version:
+
+## To Reproduce
+**Numbered** steps to reproduce the behaviour.
+
+## Expected behaviour
+A clear and concise description of what you expected to happen.
+
+## Screenshots
+If applicable, add screenshots to help explain your problem.
+
+## Additional context
+Add any other context about the problem here.

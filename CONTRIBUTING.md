@@ -1,0 +1,146 @@
+# Contributing Guidelines
+
+We're glad you're considering contributing to TorchDyno. Before you proceed, please take a moment to review the guidelines below to ensure a smooth contribution process.
+
+## Table of Contents
+
+- [Dev Containers](#dev-containers)
+- [Setup](#setup)
+- [Pull Requests](#pull-requests)
+- [Conventional Commits](#conventional-commits)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Pre-commit Hooks](#pre-commit-hooks)
+- [Releasing](#releasing)
+
+## Dev Containers
+
+This repository supports Dev Containers through the checked-in
+[`/.devcontainer`](.devcontainer)
+configuration.
+
+If you use VS Code Dev Containers or GitHub Codespaces, you can rely on that
+setup for a reproducible contributor environment.
+
+## Setup
+
+The project is managed with [uv](https://docs.astral.sh/uv/). Install it, then run from the repository root:
+
+```bash
+make setup
+```
+
+This installs the package and all the development, test and docs dependencies in `.venv`, at the versions pinned in `uv.lock`.
+
+## Pull Requests
+
+To contribute to this project, follow these steps:
+
+1. **Fork the repository:** Click the "Fork" button on the top right corner of this page. This will create a copy of the repository in your GitHub account.
+
+2. **Clone the repository:** Clone your forked repository to your local machine. Replace `<your-username>` with your GitHub username.
+
+    ```bash
+    git clone https://github.com/<your-username>/torchdyno.git
+    ```
+
+3. **Create a new branch:** Create a new branch for your changes. Use a descriptive name that reflects the nature of your work.
+
+    ```bash
+    git checkout -b feat/my-feature
+    ```
+
+4. **Make your changes:** Implement your changes and ensure they adhere to the guidelines outlined below.
+
+5. **Commit your changes:** Commit your changes following the [conventional commits format](https://www.conventionalcommits.org/en/v1.0.0/).
+
+    ```bash
+    git add .
+    git commit -m "feat: New feature short description"
+    ```
+
+6. **Push your changes:** Push your changes to your forked repository.
+
+    ```bash
+    git push origin feat/my-feature
+    ```
+
+7. **Submit a pull request:** Go to the GitHub page of your forked repository. You should see a "Compare & pull request" button. Click on it to open a pull request. Fill in the necessary information and submit the pull request.
+
+## Conventional Commits
+
+We enforce the usage of conventional commits in this repository. Please ensure that your commit messages follow the conventional commits format. You can find more information about conventional commits [here](https://www.conventionalcommits.org/en/v1.0.0/).
+
+## Testing
+
+We use `pytest` for the test suite.
+
+Useful command:
+
+```bash
+uv run pytest
+```
+
+## Documentation
+
+The documentation is built with Sphinx, treating warnings as errors:
+
+```bash
+make docs
+```
+
+The pages are written to `docs/_build/html`. To find classes missing from the documentation, run:
+
+```bash
+uv run --group docs make -C docs coverage
+```
+
+## Pre-commit Hooks
+
+Formatting and linting run as pre-commit hooks, the same ones pre-commit.ci runs on every pull request:
+
+- [Ruff](https://github.com/astral-sh/ruff): linting (rules in the `[tool.ruff]` section of `pyproject.toml`) and formatting.
+- [isort](https://github.com/PyCQA/isort): import sorting (*Ruff could also handle this, but we use some standards that are not already ported to Ruff*).
+- [mypy](https://mypy-lang.org/): type checking of the `torchdyno` package.
+
+Follow the steps below to install and run them:
+
+1. **Install the hooks** (pre-commit is installed by `make setup`):
+
+    ```bash
+    uv run pre-commit install
+    ```
+
+    This also installs the hooks that check commit messages and, before pushing, the commits on your branch.
+
+2. **Run pre-commit checks manually (optional):**
+
+    ```bash
+    make check
+    ```
+
+This will execute all pre-commit hooks (formatting and linting) across your repository. Any issues found will be reported, and you'll need to address them before committing your changes.
+
+By following these steps, you ensure that your contributions maintain consistency and quality across the codebase. If you encounter any issues or have questions about the setup, feel free to reach out for assistance.
+
+## Releasing
+
+Releases are made by maintainers, who can push to `main` and create tags.
+
+1. On an up-to-date `main`, run:
+
+    ```bash
+    make bump
+    ```
+
+    Commitizen picks the next version from the commits since the last tag (`fix` → patch, `feat` → minor, breaking change → major; `make patch` forces a patch), updates the version in `pyproject.toml`, `uv.lock`, `torchdyno/__init__.py` and `CITATION.cff`, adds the release to `CHANGELOG.md`, commits it as `chore(release): bump version X → Y` and creates the tag.
+
+2. Push the commit and the tag:
+
+    ```bash
+    git push --follow-tags
+    ```
+
+3. The tag starts the `Build and Deploy to PyPI` workflow. It builds and checks the wheel, runs the pre-commit hooks and the tests, then publishes to PyPI through trusted publishing (`pypi` environment) and creates the GitHub Release with the changelog and the wheel.
+
+If the workflow fails before publishing, fix the problem on `main` and release the next patch version. A version published to PyPI can never be replaced: a broken release is fixed by a new patch release, and can be yanked on PyPI so that it is no longer installed by default.
