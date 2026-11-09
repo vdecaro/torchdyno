@@ -12,7 +12,10 @@ from torch import nn
 if TYPE_CHECKING:
     from torch import Tensor
 
-    from torchdyno.cells import Cell
+    from torchdyno.cells import (
+        Cell,
+        LinearDiagonalCell,
+    )
 
 
 class Recurrent(nn.Module):
@@ -44,6 +47,56 @@ class Recurrent(nn.Module):
             h = self.cell(u, h)
             states.append(h)
         return torch.stack(states)
+
+
+class Scan(Recurrent):
+    """Run a :class:`~torchdyno.cells.LinearDiagonalCell` with a parallel scan.
+
+    Same contract as :class:`Recurrent`, but ``ceil(log2 T)`` steps over the whole
+    sequence replace the ``T`` sequential ones, which the linear recurrence
+    allows.
+    """
+
+    cell: LinearDiagonalCell
+
+    def __init__(self, cell: LinearDiagonalCell):
+        """Initializes the layer.
+
+        Args:
+            cell: the linear cell to run.
+        """
+        super().__init__(cell)
+
+    def forward(self, x: Tensor, h0: Tensor | None = None) -> Tensor:
+        """Run the cell over ``x``.
+
+        Args:
+            x: the input sequence, shape ``(T, B, F)``.
+            h0: the state to start from, e.g. the last output of a previous
+                call; ``None`` starts from zeros.
+
+        Returns:
+            The state after every timestep, shape ``(T, B, state_size)``.
+        """
+        a, b = self.cell.coefficients(x)
+        if h0 is not None:
+            modes = self.cell.modes
+            first = b[0] + a * torch.complex(h0[..., :modes], h0[..., modes:])
+            b = torch.cat([first.unsqueeze(0), b[1:]])
+        h = _scan(a.expand_as(b), b)
+        return torch.cat([h.real, h.imag], dim=-1)
+
+
+def _scan(a: Tensor, b: Tensor) -> Tensor:
+    """Hillis-Steele scan of ``h_t = a_t h_(t-1) + b_t`` over dim 0, from zero."""
+    shift = 1
+    while shift < b.shape[0]:
+        a, b = (
+            torch.cat([a[:shift], a[shift:] * a[:-shift]]),
+            torch.cat([b[:shift], a[shift:] * b[:-shift] + b[shift:]]),
+        )
+        shift *= 2
+    return b
 
 
 class Stack(nn.Sequential):
