@@ -42,3 +42,26 @@ class Recurrent(nn.Module):
             h = self.cell(u, h)
             states.append(h)
         return torch.stack(states)
+
+
+class Stack(nn.Sequential):
+    """Run layers in series and concatenate every layer's output.
+
+    Each layer reads the previous layer's output; the result is all of them
+    side by side, e.g. a deep reservoir read out over every layer.
+    """
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Run the layers.
+
+        Args:
+            x: the input sequence, shape ``(T, B, F)``.
+
+        Returns:
+            The outputs of all layers, concatenated on the last dimension.
+        """
+        outputs = []
+        for layer in self:
+            x = layer(x)
+            outputs.append(x)
+        return torch.cat(outputs, dim=-1)

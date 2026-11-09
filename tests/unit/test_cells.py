@@ -1,6 +1,7 @@
 """Each composition against a loop written from its update equation."""
 
 import torch
+from torch import nn
 
 from tests.unit.compositions import (
     adadiag,
@@ -8,7 +9,10 @@ from tests.unit.compositions import (
     scn,
 )
 from torchdyno.cells import EulerCell
-from torchdyno.layers import Recurrent
+from torchdyno.layers import (
+    Recurrent,
+    Stack,
+)
 from torchdyno.matrices import Dense
 
 DTYPE = torch.float64
@@ -84,6 +88,17 @@ def test_reservoir():
     _assert_matches(
         layer, _reservoir_step(layer.cell), torch.randn(20, 3, 2, dtype=DTYPE)
     )
+
+
+def test_deep_reservoir_reads_every_layer_or_the_last():
+    torch.manual_seed(0)
+    first, second = reservoir(2, 16, dtype=DTYPE), reservoir(16, 8, dtype=DTYPE)
+    x = torch.randn(20, 3, 2, dtype=DTYPE)
+    h1 = _loop(_reservoir_step(first.cell), x, 16)
+    h2 = _loop(_reservoir_step(second.cell), h1, 8)
+    every = Stack(first, second)(x)
+    torch.testing.assert_close(every, torch.cat([h1, h2], -1), rtol=0, atol=1e-10)
+    torch.testing.assert_close(nn.Sequential(first, second)(x), every[..., 16:])
 
 
 def test_gain_and_bias_start_as_a_no_op():
