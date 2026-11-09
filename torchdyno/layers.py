@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 if TYPE_CHECKING:
@@ -91,3 +93,97 @@ class Concat(nn.ModuleList):
             The outputs, concatenated on the last dimension.
         """
         return torch.cat([module(x) for module in self], dim=-1)
+
+
+class RandomConv(nn.Module):
+    """ROCKET's random convolution kernels: ``(T, B, C) -> (T, B, kernels)``.
+
+    From Dempster, Petitjean and Webb, "ROCKET: exceptionally fast and accurate
+    time series classification using random convolutional kernels" (2020), with
+    the multivariate kernels of its reference implementations. Each kernel has:
+
+    - a length drawn from {7, 9, 11};
+    - N(0, 1) weights, centred on each of a random subset of channels;
+    - a U(-1, 1) bias;
+    - a dilation ``int(2 ** U(0, log2((length - 1) / (L - 1))))``;
+    - padding ``(L - 1) d // 2`` half of the time.
+
+    The kernels are fixed buffers. A kernel without padding produces
+    ``T - (L - 1) d`` outputs, aligned to the end, and the positions before them
+    are NaN: pool with :class:`~torchdyno.pooling.PPV` and
+    :class:`~torchdyno.pooling.Max`, which skip them.
+    """
+
+    weight: Tensor
+    bias: Tensor
+    lengths: Tensor
+    dilations: Tensor
+    paddings: Tensor
+
+    def __init__(
+        self,
+        channels: int,
+        length: int,
+        kernels: int = 10_000,
+        dtype: torch.dtype = torch.float32,
+    ):
+        """Initializes the layer.
+
+        Args:
+            channels: the number of input channels ``C``.
+            length: the series length the dilations are drawn for; inputs must be
+                at least this long.
+            kernels: the number of kernels.
+            dtype: the data type.
+        """
+        super().__init__()
+        self.channels = channels
+        self.kernels = kernels
+        lengths = torch.tensor([7, 9, 11])[torch.randint(3, (kernels,))]
+        weight = torch.zeros(kernels, channels, 11, dtype=dtype)
+        dilations = torch.ones(kernels, dtype=torch.long)
+        paddings = torch.zeros(kernels, dtype=torch.long)
+        for k, size in enumerate(lengths.tolist()):
+            used = int(
+                2 ** (torch.rand(()).item() * math.log2(min(channels, size) + 1))
+            )
+            taps = torch.randn(used, size, dtype=dtype)
+            weight[k, torch.randperm(channels)[:used], :size] = taps - taps.mean(
+                dim=1, keepdim=True
+            )
+            spread = math.log2((length - 1) / (size - 1))
+            dilations[k] = max(1, int(2 ** (torch.rand(()).item() * spread)))
+            if torch.rand(()).item() < 0.5:  # noqa: PLR2004
+                paddings[k] = (size - 1) * int(dilations[k]) // 2
+        self.register_buffer("weight", weight)
+        self.register_buffer("bias", torch.empty(kernels, dtype=dtype).uniform_(-1, 1))
+        self.register_buffer("lengths", lengths)
+        self.register_buffer("dilations", dilations)
+        self.register_buffer("paddings", paddings)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Convolve every kernel with ``x``.
+
+        Args:
+            x: the input sequence, shape ``(T, B, C)``.
+
+        Returns:
+            The kernel outputs, shape ``(T, B, kernels)``, NaN where a kernel
+            without padding produced nothing.
+        """
+        steps = x.shape[0]
+        signal = x.permute(1, 2, 0)  # conv1d wants (B, C, T)
+        out = signal.new_full((x.shape[1], self.kernels, steps), torch.nan)
+        groups = torch.stack([self.lengths, self.dilations, self.paddings], dim=1)
+        for group in groups.unique(dim=0):
+            index = (groups == group).all(dim=1).nonzero().squeeze(1)
+            size, dilation, padding = group.tolist()
+            conv = F.conv1d(
+                signal,
+                self.weight[index, :, :size],
+                self.bias[index],
+                padding=padding,
+                dilation=dilation,
+            )
+            out[:, index, steps - conv.shape[-1] :] = conv
+        return out.permute(2, 0, 1)

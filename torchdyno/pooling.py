@@ -1,6 +1,7 @@
 """Pooling: reduce a ``(T, B, H)`` sequence over time to ``(B, H)`` features.
 
-A layer may mark positions it did not produce with NaN.
+A layer marks positions it did not produce with NaN, as
+:class:`~torchdyno.layers.RandomConv` does for kernels without padding.
 :class:`Max` and :class:`PPV` skip them; :class:`Last` and :class:`Mean`
 propagate them, so a misuse stays visible.
 """
