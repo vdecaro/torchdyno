@@ -13,6 +13,8 @@ from typing import (
 )
 
 import torch
+import torch.nn.functional as F
+from torch import nn
 
 if TYPE_CHECKING:
     from collections.abc import (
@@ -20,10 +22,7 @@ if TYPE_CHECKING:
         Iterable,
     )
 
-    from torch import (
-        Tensor,
-        nn,
-    )
+    from torch import Tensor
 
 Score = TypeVar("Score")
 
@@ -69,3 +68,40 @@ def evaluate(
     # time-first (T, B, O) predictions batch on dim 1; pooled (B, C) on dim 0
     dim = 1 if preds[0].ndim == 3 else 0  # noqa: PLR2004
     return score_fn(torch.cat(preds, dim=dim), torch.cat(targets, dim=dim))
+
+
+@torch.no_grad()
+def feature_rows(
+    model: nn.Sequential, x: Tensor, y: Tensor, washout: int = 0
+) -> tuple[Tensor, Tensor]:
+    """The rows a closed-form or online readout is fitted on.
+
+    Time-aligned ``(T, B, H)`` features give one row per timestep, in time
+    order, after dropping the first ``washout`` steps; pooled ``(B, H)``
+    features give one row per sequence. Integer targets become one-hot.
+
+    Args:
+        model: a sequential model whose last module is the ``nn.Linear`` readout.
+        x: the input batch.
+        y: the targets, aligned with the features.
+        washout: leading timesteps to drop.
+
+    Returns:
+        ``(n, H)`` features and ``(n, O)`` targets, in float64.
+
+    Raises:
+        TypeError: if the last module is not an ``nn.Linear``.
+        ValueError: if ``washout`` is set for pooled features.
+    """
+    readout = model[-1]
+    if not isinstance(readout, nn.Linear):
+        raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
+    features = model[:-1](x)
+    if features.ndim == 3:  # noqa: PLR2004 (T, B, H): fit every timestep
+        features, y = features[washout:], y[washout:]
+    elif washout:
+        raise ValueError("washout needs time-aligned (T, B, H) features.")
+    if not y.is_floating_point():
+        y = F.one_hot(y, readout.out_features)
+    features = features.reshape(-1, features.shape[-1]).double()
+    return features, y.reshape(features.shape[0], -1).double()

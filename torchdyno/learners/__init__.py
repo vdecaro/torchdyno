@@ -6,8 +6,10 @@ from .base import (
     evaluate,
 )
 from .ridge import Ridge
+from .rls import RLS
 
 __all__ = [
+    "RLS",
     "Backprop",
     "FitResult",
     "Ridge",

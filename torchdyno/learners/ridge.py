@@ -8,12 +8,12 @@ from typing import (
 )
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from torchdyno.learners.base import (
     FitResult,
     evaluate,
+    feature_rows,
 )
 from torchdyno.reproducibility import get_rng_state
 
@@ -100,7 +100,7 @@ class Ridge:
                 "Selecting among several l2 values needs val, score_fn and mode."
             )
 
-        solve = self._solver(model[:-1], readout, train)
+        solve = self._solver(model, readout, train)
         if len(candidates) == 1:
             best: dict[str, float] = {"l2": candidates[0]}
         else:
@@ -115,24 +115,9 @@ class Ridge:
         _set(readout, *solve(best["l2"]))
         return FitResult(best=best, rng=rng)
 
-    @torch.no_grad()
-    def _rows(
-        self, features: nn.Module, readout: nn.Linear, x: Tensor, y: Tensor
-    ) -> tuple[Tensor, Tensor]:
-        """One float64 row per sample: ``(n, H)`` features and ``(n, O)`` targets."""
-        f = features(x)
-        if f.ndim == 3:  # noqa: PLR2004 (T, B, H): fit every timestep
-            f, y = f[self.washout :], y[self.washout :]
-        elif self.washout:
-            raise ValueError("washout needs time-aligned (T, B, H) features.")
-        if not y.is_floating_point():
-            y = F.one_hot(y, readout.out_features)
-        f = f.reshape(-1, f.shape[-1]).double()
-        return f, y.reshape(f.shape[0], -1).double()
-
     def _solver(
         self,
-        features: nn.Module,
+        model: nn.Sequential,
         readout: nn.Linear,
         loader: Iterable[tuple[Tensor, Tensor]],
     ) -> Callable[[float], tuple[Tensor, Tensor]]:
@@ -142,7 +127,7 @@ class Ridge:
         gram = cross = sum_x = sum_y = None
         n = 0
         for x, y in loader:
-            f, t = self._rows(features, readout, x, y)
+            f, t = feature_rows(model, x, y, self.washout)
             n += f.shape[0]
             if gram is None:
                 xs.append(f)
