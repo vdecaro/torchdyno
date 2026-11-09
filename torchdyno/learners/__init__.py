@@ -5,9 +5,11 @@ from .base import (
     FitResult,
     evaluate,
 )
+from .ridge import Ridge
 
 __all__ = [
     "Backprop",
     "FitResult",
+    "Ridge",
     "evaluate",
 ]

@@ -1,0 +1,216 @@
+"""Ridge: fit the final linear readout of a model in closed form."""
+
+from __future__ import annotations
+
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+)
+
+import torch
+import torch.nn.functional as F
+from torch import nn
+
+from torchdyno.learners.base import (
+    FitResult,
+    evaluate,
+)
+from torchdyno.reproducibility import get_rng_state
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Iterable,
+    )
+
+    from torch import Tensor
+
+
+class Ridge:
+    """Fit ``model[-1]``, an ``nn.Linear``, on the features of ``model[:-1]``.
+
+    Time-aligned ``(T, B, H)`` features are fitted at every timestep, pooled
+    ``(B, H)`` ones once per sequence; integer targets become one-hot. Everything
+    before the readout is left untouched. The sums are kept in float64, and when
+    there are fewer samples than features the solve uses the dual form.
+    """
+
+    def __init__(
+        self,
+        l2: float | list[float] = 1e-6,
+        washout: int = 0,
+        standardize: bool = False,
+        score_fn: Callable[[Tensor, Tensor], float] | None = None,
+        mode: Literal["min", "max"] | None = None,
+    ):
+        """Initializes the learner.
+
+        Args:
+            l2: the L2 penalty, or candidates to select among on ``val``
+                (requires ``score_fn`` and ``mode``).
+            washout: leading timesteps to discard; only for time-aligned
+                features.
+            standardize: scale every feature to unit variance before solving,
+                folding the scale back into the weight.
+            score_fn: ``score_fn(prediction, target) -> float`` ranking the L2
+                candidates.
+            mode: ``"min"`` or ``"max"``: whether the best score is smallest or
+                largest.
+        """
+        self.l2 = l2
+        self.washout = washout
+        self.standardize = standardize
+        self.score_fn = score_fn
+        self.mode = mode
+
+    def fit(
+        self,
+        model: nn.Sequential,
+        train: Iterable[tuple[Tensor, Tensor]],
+        val: Iterable[tuple[Tensor, Tensor]] | None = None,
+    ) -> FitResult:
+        """Solve for the readout on ``train``.
+
+        The readout gets an intercept if it has a bias.
+
+        Args:
+            model: the model whose last module is set in place.
+            train: batches of time-first ``(x, y)``; ``y`` is ``(T, B, O)``
+                for time-aligned features or ``(B, O)`` / ``(B,)`` class
+                indices for pooled ones.
+            val: batches used to select among several ``l2`` values.
+
+        Returns:
+            The chosen ``l2`` (and its score when selecting) and the RNG state.
+
+        Raises:
+            TypeError: if the last module is not an ``nn.Linear``.
+            ValueError: if several ``l2`` values are given without ``val``,
+                ``score_fn`` and ``mode``.
+        """
+        readout = model[-1]
+        if not isinstance(readout, nn.Linear):
+            raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
+        rng = get_rng_state()
+        candidates = self.l2 if isinstance(self.l2, list) else [self.l2]
+        if len(candidates) > 1 and (
+            val is None or self.score_fn is None or not self.mode
+        ):
+            raise ValueError(
+                "Selecting among several l2 values needs val, score_fn and mode."
+            )
+
+        solve = self._solver(model[:-1], readout, train)
+        if len(candidates) == 1:
+            best: dict[str, float] = {"l2": candidates[0]}
+        else:
+            assert val is not None and self.score_fn is not None  # checked above
+            scores = {}
+            for l2 in candidates:
+                _set(readout, *solve(l2))
+                scores[l2] = evaluate(model, val, self.score_fn)
+            pick = max if self.mode == "max" else min
+            chosen = pick(scores, key=scores.__getitem__)
+            best = {"l2": chosen, "score": scores[chosen]}
+        _set(readout, *solve(best["l2"]))
+        return FitResult(best=best, rng=rng)
+
+    @torch.no_grad()
+    def _rows(
+        self, features: nn.Module, readout: nn.Linear, x: Tensor, y: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        """One float64 row per sample: ``(n, H)`` features and ``(n, O)`` targets."""
+        f = features(x)
+        if f.ndim == 3:  # noqa: PLR2004 (T, B, H): fit every timestep
+            f, y = f[self.washout :], y[self.washout :]
+        elif self.washout:
+            raise ValueError("washout needs time-aligned (T, B, H) features.")
+        if not y.is_floating_point():
+            y = F.one_hot(y, readout.out_features)
+        f = f.reshape(-1, f.shape[-1]).double()
+        return f, y.reshape(f.shape[0], -1).double()
+
+    def _solver(
+        self,
+        features: nn.Module,
+        readout: nn.Linear,
+        loader: Iterable[tuple[Tensor, Tensor]],
+    ) -> Callable[[float], tuple[Tensor, Tensor]]:
+        """Accumulate the data once; return ``l2 -> (weight, bias)``."""
+        xs: list[Tensor] = []
+        ys: list[Tensor] = []
+        gram = cross = sum_x = sum_y = None
+        n = 0
+        for x, y in loader:
+            f, t = self._rows(features, readout, x, y)
+            n += f.shape[0]
+            if gram is None:
+                xs.append(f)
+                ys.append(t)
+                if n < f.shape[1]:  # fewer samples than features: keep the rows
+                    continue
+                f, t = torch.cat(xs), torch.cat(ys)
+                xs, ys = [], []
+                gram, cross, sum_x, sum_y = f.T @ f, f.T @ t, f.sum(0), t.sum(0)
+            else:
+                assert cross is not None and sum_x is not None and sum_y is not None
+                gram, cross = gram + f.T @ f, cross + f.T @ t
+                sum_x, sum_y = sum_x + f.sum(0), sum_y + t.sum(0)
+
+        intercept = readout.bias is not None
+        if gram is None:  # dual form on the kept rows
+            rows, targets = torch.cat(xs), torch.cat(ys)
+            mean_x, mean_y = rows.mean(0), targets.mean(0)
+            centered = rows - mean_x
+            scale = _scale(centered.pow(2).mean(0), self.standardize)
+            if intercept:
+                rows, targets = centered, targets - mean_y
+            rows = rows / scale
+            kernel = rows @ rows.T
+            eye = torch.eye(n, dtype=kernel.dtype)
+
+            def solve(l2: float) -> tuple[Tensor, Tensor]:
+                coef = rows.T @ torch.linalg.solve(kernel + l2 * eye, targets)
+                return _unscale(coef, scale, mean_x, mean_y, intercept)
+
+            return solve
+
+        assert cross is not None and sum_x is not None and sum_y is not None
+        mean_x, mean_y = sum_x / n, sum_y / n
+        gram_c = gram - n * torch.outer(mean_x, mean_x)
+        scale = _scale(gram_c.diagonal() / n, self.standardize)
+        if intercept:
+            gram, cross = gram_c, cross - n * torch.outer(mean_x, mean_y)
+        gram = gram / torch.outer(scale, scale)
+        cross = cross / scale[:, None]
+        eye = torch.eye(gram.shape[0], dtype=gram.dtype)
+
+        def solve_primal(l2: float) -> tuple[Tensor, Tensor]:
+            coef = torch.linalg.solve(gram + l2 * eye, cross)
+            return _unscale(coef, scale, mean_x, mean_y, intercept)
+
+        return solve_primal
+
+
+def _scale(variance: Tensor, standardize: bool) -> Tensor:
+    """Per-feature standard deviation, or ones; zero-variance features keep 1."""
+    if not standardize:
+        return torch.ones_like(variance)
+    std = variance.clamp_min(0).sqrt()
+    return torch.where(std > 0, std, torch.ones_like(std))
+
+
+def _unscale(
+    coef: Tensor, scale: Tensor, mean_x: Tensor, mean_y: Tensor, intercept: bool
+) -> tuple[Tensor, Tensor]:
+    """Map a solution on scaled features back to ``(weight, bias)`` on raw ones."""
+    weight = coef / scale[:, None]  # (H, O)
+    bias = mean_y - mean_x @ weight if intercept else torch.zeros_like(mean_y)
+    return weight.T, bias
+
+
+def _set(readout: nn.Linear, weight: Tensor, bias: Tensor) -> None:
+    with torch.no_grad():
+        readout.weight.copy_(weight)
+        if readout.bias is not None:
+            readout.bias.copy_(bias)
