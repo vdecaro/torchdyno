@@ -6,6 +6,9 @@ from torchdyno.cells import (
     EulerCell,
     Gate,
     LeakyCell,
+    LinearDiagonalCell,
+    RingDiagonal,
+    ZOHDiagonal,
 )
 from torchdyno.layers import Recurrent
 from torchdyno.matrices import (
@@ -56,4 +59,32 @@ def reservoir(features=2, size=16, leak=0.5, rho=0.9, dtype=torch.float32):
     )
 
 
-COMPOSITIONS = {"adadiag": adadiag, "scn": scn, "reservoir": reservoir}
+def lru(features=2, modes=8, dtype=torch.float32):
+    return Recurrent(
+        LinearDiagonalCell(
+            transition=RingDiagonal(modes, r_min=0.4, r_max=0.99, dtype=dtype),
+            input=Dense(
+                features, modes, init=normal(features**-0.5), dtype=dtype.to_complex()
+            ),
+        )
+    )
+
+
+def s4d(features=2, modes=8, dtype=torch.float32):
+    return Recurrent(
+        LinearDiagonalCell(
+            transition=ZOHDiagonal(modes, dtype=dtype),
+            input=Dense(
+                features, modes, init=normal(features**-0.5), dtype=dtype.to_complex()
+            ),
+        )
+    )
+
+
+COMPOSITIONS = {
+    "adadiag": adadiag,
+    "scn": scn,
+    "reservoir": reservoir,
+    "lru": lru,
+    "s4d": s4d,
+}
