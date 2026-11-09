@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from torchdyno.cells import (
+    ClosedFormCell,
     EulerCell,
     Gate,
     LeakyCell,
@@ -95,6 +96,18 @@ def cornn(features=2, size=8, dtype=torch.float32):
     )
 
 
+def cfc(features=2, size=8, units=8, dtype=torch.float32):
+    return Recurrent(
+        ClosedFormCell(
+            backbone=nn.Sequential(
+                nn.Linear(size + features, units, dtype=dtype), nn.Tanh()
+            ),
+            heads=nn.Linear(units, 4 * size, dtype=dtype),
+            dt=1.0,
+        )
+    )
+
+
 COMPOSITIONS = {
     "adadiag": adadiag,
     "scn": scn,
@@ -102,4 +115,5 @@ COMPOSITIONS = {
     "lru": lru,
     "s4d": s4d,
     "cornn": cornn,
+    "cfc": cfc,
 }

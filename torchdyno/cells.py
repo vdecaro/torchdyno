@@ -244,6 +244,55 @@ class OscillatorCell(Cell):
         return torch.cat([y + self.dt * z, z], dim=-1)
 
 
+class ClosedFormCell(Cell):
+    """A closed-form continuous-time cell (CfC).
+
+    From Hasani et al., "Closed-form continuous-time neural networks" (2022).
+    A backbone reads ``[h; u]``, and four heads stacked in ``heads`` give
+    ``f_1, f_2, t_a, t_b``::
+
+        g  = sigmoid(t_a dt + t_b)
+        h' = tanh(f_1) (1 - g) + tanh(f_2) g
+    """
+
+    def __init__(self, backbone: nn.Module, heads: LinearMap, dt: float = 1.0):
+        """Initializes the cell.
+
+        Args:
+            backbone: a module on ``[h; u]``, e.g. ``nn.Sequential(nn.Linear,
+                nn.Tanh)``, or ``nn.Identity()``.
+            heads: the map from the backbone to ``[f_1; f_2; t_a; t_b]``; the
+                state size is a quarter of its output.
+            dt: the elapsed time per step.
+
+        Raises:
+            ValueError: if ``dt`` is not positive.
+        """
+        super().__init__()
+        if dt <= 0:
+            raise ValueError(f"dt must be > 0, got {dt}.")
+        self.backbone = backbone
+        self.heads = heads
+        self.dt = dt
+        self.state_size = heads.out_features // 4
+
+    def forward(self, u: Tensor, h: Tensor) -> Tensor:
+        """Advance the state by one timestep.
+
+        Args:
+            u: the input, shape ``(B, F)``.
+            h: the state, shape ``(B, state_size)``.
+
+        Returns:
+            The new state.
+        """
+        f1, f2, t_a, t_b = self.heads(self.backbone(torch.cat([h, u], dim=-1))).chunk(
+            4, -1
+        )
+        gate = torch.sigmoid(t_a * self.dt + t_b)
+        return torch.tanh(f1) * (1 - gate) + torch.tanh(f2) * gate
+
+
 class RingDiagonal(nn.Module):
     """LRU's stable complex diagonal ``λ = exp(-e^nu + iθ)``, with ``sqrt(1 - |λ|²)``.
 

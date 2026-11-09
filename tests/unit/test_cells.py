@@ -6,11 +6,13 @@ from torch import nn
 
 from tests.unit.compositions import (
     adadiag,
+    cfc,
     cornn,
     reservoir,
     scn,
 )
 from torchdyno.cells import (
+    ClosedFormCell,
     EulerCell,
     OscillatorCell,
 )
@@ -152,3 +154,27 @@ def test_cornn():
 def test_oscillator_needs_positive_constants():
     with pytest.raises(ValueError, match="must be > 0"):
         OscillatorCell(Dense(2, 4), Dense(8, 4), dt=0.0)
+
+
+def test_cfc():
+    torch.manual_seed(0)
+    layer = cfc(features=2, size=5, units=7, dtype=DTYPE)
+    cell = layer.cell
+    w_back, b_back = cell.backbone[0].weight, cell.backbone[0].bias
+    w_heads, b_heads = cell.heads.weight, cell.heads.bias
+
+    def step(u, h):
+        f = torch.tanh(torch.cat([h, u], -1) @ w_back.T + b_back)
+        f1, f2, t_a, t_b = (
+            f @ w_heads[i * 5 : (i + 1) * 5].T + b_heads[i * 5 : (i + 1) * 5]
+            for i in range(4)
+        )
+        gate = torch.sigmoid(t_a * 1.0 + t_b)
+        return torch.tanh(f1) * (1 - gate) + torch.tanh(f2) * gate
+
+    _assert_matches(layer, step, torch.randn(20, 3, 2, dtype=DTYPE))
+
+
+def test_closed_form_cell_needs_a_positive_step():
+    with pytest.raises(ValueError, match="dt must be > 0"):
+        ClosedFormCell(nn.Identity(), nn.Linear(6, 16), dt=0.0)
