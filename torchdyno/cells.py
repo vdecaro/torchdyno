@@ -178,6 +178,72 @@ class LeakyCell(Cell):
         return (1 - self.leak) * h + self.leak * drive
 
 
+class OscillatorCell(Cell):
+    """Coupled damped oscillators, integrated with an explicit step (coRNN).
+
+    From Rusch and Mishra, "Coupled Oscillatory Recurrent Neural Network
+    (coRNN)" (2021). The state ``[y; z]`` holds positions and velocities::
+
+        z' = z + dt (φ(W [y; z] + V u + b) - gamma y - ε z)
+        y' = y + dt z'
+
+    ``recurrent`` maps the whole state ``[y; z]`` to the positions, so
+    ``W [y; z]`` is the paper's ``W y + W_z z`` as one product; ``input`` holds
+    ``V`` and the bias ``b``.
+    """
+
+    def __init__(
+        self,
+        input: LinearMap,
+        recurrent: LinearMap,
+        dt: float = 0.1,
+        gamma: float = 1.0,
+        epsilon: float = 1.0,
+        activation: Callable[[Tensor], Tensor] = torch.tanh,
+    ):
+        """Initializes the cell.
+
+        Args:
+            input: the input matrix ``V``, with the bias ``b``.
+            recurrent: the ``(2H -> H)`` matrix on the state ``[y; z]``.
+            dt: the integration step.
+            gamma: the restoring force.
+            epsilon: the damping.
+            activation: the activation ``φ``.
+
+        Raises:
+            ValueError: if ``dt``, ``gamma`` or ``epsilon`` is not positive.
+        """
+        super().__init__()
+        if min(dt, gamma, epsilon) <= 0:
+            raise ValueError(
+                f"dt, gamma and epsilon must be > 0, got {dt}, {gamma}, {epsilon}."
+            )
+        self.input = input
+        self.recurrent = recurrent
+        self.dt = dt
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.activation = activation
+        self.positions = recurrent.out_features
+        self.state_size = 2 * self.positions
+
+    def forward(self, u: Tensor, state: Tensor) -> Tensor:
+        """Advance the state by one timestep.
+
+        Args:
+            u: the input, shape ``(B, F)``.
+            state: ``[y; z]``, shape ``(B, state_size)``.
+
+        Returns:
+            The new state, in the same layout.
+        """
+        y, z = state[..., : self.positions], state[..., self.positions :]
+        drive = self.activation(self.recurrent(state) + self.input(u))
+        z = z + self.dt * (drive - self.gamma * y - self.epsilon * z)
+        return torch.cat([y + self.dt * z, z], dim=-1)
+
+
 class RingDiagonal(nn.Module):
     """LRU's stable complex diagonal ``λ = exp(-e^nu + iθ)``, with ``sqrt(1 - |λ|²)``.
 

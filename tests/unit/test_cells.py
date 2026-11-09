@@ -1,14 +1,19 @@
 """Each composition against a loop written from its update equation."""
 
+import pytest
 import torch
 from torch import nn
 
 from tests.unit.compositions import (
     adadiag,
+    cornn,
     reservoir,
     scn,
 )
-from torchdyno.cells import EulerCell
+from torchdyno.cells import (
+    EulerCell,
+    OscillatorCell,
+)
 from torchdyno.layers import (
     Recurrent,
     Stack,
@@ -124,3 +129,26 @@ def test_euler_cell_without_coupling():
         return v + 0.5 * (-v + torch.relu(v) @ w.T + u @ w_in.T)
 
     _assert_matches(Recurrent(cell), step, torch.randn(10, 3, 2, dtype=DTYPE))
+
+
+def test_cornn():
+    torch.manual_seed(0)
+    layer = cornn(features=2, size=6, dtype=DTYPE)
+    cell = layer.cell
+    w, w_z = cell.recurrent.weight[:, :6], cell.recurrent.weight[:, 6:]
+    v, b = cell.input.weight, cell.input.bias
+    with torch.no_grad():
+        b.normal_()  # starts at zero; exercise it
+
+    def step(u, state):
+        y, z = state[:, :6], state[:, 6:]
+        drive = torch.tanh(y @ w.T + z @ w_z.T + u @ v.T + b)
+        z = z + 0.1 * (drive - 1.0 * y - 1.0 * z)
+        return torch.cat([y + 0.1 * z, z], -1)
+
+    _assert_matches(layer, step, torch.randn(20, 3, 2, dtype=DTYPE))
+
+
+def test_oscillator_needs_positive_constants():
+    with pytest.raises(ValueError, match="must be > 0"):
+        OscillatorCell(Dense(2, 4), Dense(8, 4), dt=0.0)

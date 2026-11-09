@@ -1,12 +1,14 @@
 """Known models composed from parts, at test sizes."""
 
 import torch
+from torch import nn
 
 from torchdyno.cells import (
     EulerCell,
     Gate,
     LeakyCell,
     LinearDiagonalCell,
+    OscillatorCell,
     RingDiagonal,
     ZOHDiagonal,
 )
@@ -81,10 +83,23 @@ def s4d(features=2, modes=8, dtype=torch.float32):
     )
 
 
+def cornn(features=2, size=8, dtype=torch.float32):
+    return Recurrent(
+        OscillatorCell(
+            input=Dense(features, size, bias=nn.init.zeros_, dtype=dtype),
+            recurrent=Dense(2 * size, size, init=uniform(size**-0.5), dtype=dtype),
+            dt=0.1,
+            gamma=1.0,
+            epsilon=1.0,
+        )
+    )
+
+
 COMPOSITIONS = {
     "adadiag": adadiag,
     "scn": scn,
     "reservoir": reservoir,
     "lru": lru,
     "s4d": s4d,
+    "cornn": cornn,
 }
