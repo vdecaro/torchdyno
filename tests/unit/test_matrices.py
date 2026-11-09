@@ -120,3 +120,22 @@ def test_matrices_keep_their_dtype(dtype):
         SkewCoupling([2, 1], pairs="ring", dtype=dtype),
     ):
         assert matrix(torch.randn(2, 3, dtype=dtype)).dtype == dtype
+
+
+def test_complex_dense_takes_real_input():
+    torch.manual_seed(0)
+    matrix = Dense(3, 4, init=normal(0.5), bias=normal(0.1), dtype=torch.cdouble)
+    x = torch.randn(5, 3, dtype=torch.float64)
+    out = matrix(x)
+    assert out.dtype == torch.cdouble
+    torch.testing.assert_close(out, x.to(torch.cdouble) @ matrix.weight.T + matrix.bias)
+
+
+def test_complex_initialisers_draw_both_parts():
+    torch.manual_seed(0)
+    weight = Dense(300, 300, init=normal(0.5), dtype=torch.cfloat).weight
+    for part in (weight.real, weight.imag):
+        assert part.std().item() == pytest.approx(0.5, rel=0.02)
+    bounded = Dense(50, 50, init=uniform(0.3), dtype=torch.cfloat).weight
+    assert bounded.real.abs().max() <= 0.3 and bounded.imag.abs().max() <= 0.3
+    assert bounded.imag.abs().max() > 0.25

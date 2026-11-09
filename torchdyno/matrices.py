@@ -50,8 +50,13 @@ class LinearMap(Protocol):
         ...
 
 
+def _real(tensor: Tensor) -> Tensor:
+    """A real view of ``tensor``: the real and imaginary parts if it is complex."""
+    return torch.view_as_real(tensor) if tensor.is_complex() else tensor
+
+
 def uniform(scale: float) -> Init:
-    """Initialise from ``U(-scale, scale)``.
+    """Initialise from ``U(-scale, scale)``; complex parts are drawn independently.
 
     Args:
         scale: the half-width of the interval.
@@ -61,23 +66,25 @@ def uniform(scale: float) -> Init:
     """
 
     def init(tensor: Tensor) -> Tensor:
-        return nn.init.uniform_(tensor, -scale, scale)
+        nn.init.uniform_(_real(tensor), -scale, scale)
+        return tensor
 
     return init
 
 
 def normal(std: float) -> Init:
-    """Initialise from ``N(0, std²)``.
+    """Initialise from ``N(0, std²)``; complex parts are drawn independently.
 
     Args:
-        std: the standard deviation.
+        std: the standard deviation of each part.
 
     Returns:
         An in-place initialiser.
     """
 
     def init(tensor: Tensor) -> Tensor:
-        return nn.init.normal_(tensor, 0.0, std)
+        nn.init.normal_(_real(tensor), 0.0, std)
+        return tensor
 
     return init
 
@@ -102,7 +109,10 @@ def spectral(init: Init, rho: float) -> Init:
 
 
 class Dense(nn.Module):
-    """A dense matrix with an optional bias: ``x Wᵀ + b``."""
+    """A dense matrix with an optional bias: ``x Wᵀ + b``.
+
+    With a complex ``dtype``, real inputs are cast to complex before the product.
+    """
 
     bias: nn.Parameter | None
 
@@ -143,6 +153,8 @@ class Dense(nn.Module):
         Returns:
             ``x Wᵀ + b``.
         """
+        if self.weight.is_complex() and not x.is_complex():
+            x = x.to(self.weight.dtype)
         return F.linear(x, self.weight, self.bias)
 
     def dense(self) -> Tensor:
