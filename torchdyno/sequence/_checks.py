@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 def _absent(x: Tensor) -> Tensor:
     """The ``(T, B)`` steps a sequence does not have: NaN in every feature."""
-    return x.isnan().all(-1)
+    # with no features every step is present, e.g. a closed loop with no input
+    return x.isnan().all(-1) & (x.shape[-1] > 0)
 
 
 def _check(x: Tensor, h0: Tensor | None = None, state_size: int = 0) -> None:

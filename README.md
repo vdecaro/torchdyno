@@ -31,11 +31,11 @@ pip install torchdyno
 A model is a plain `torch.nn.Sequential` of parts from four levels, each a subpackage:
 
 1. `torchdyno.matrices`: weight matrices (dense, diagonal, block-diagonal, skew-symmetric couplings) and their initialisers.
-2. `torchdyno.sequence`: how a sequence is processed: recurrent cells, run step by step or by a parallel scan, and random convolution kernels.
+2. `torchdyno.sequence`: how a sequence is processed: recurrent cells, run step by step or by a parallel scan, random convolution kernels, and ways to combine them (in series, side by side, residual, reversed, in a closed loop).
 3. `torchdyno.readout`: pooling over time; an `nn.Linear` maps the result to outputs.
 4. `torchdyno.objectives`: the tasks and metrics a model is trained and scored for.
 
-`torchdyno.learners` fits a model: ridge regression, recursive least squares, backprop and intrinsic plasticity, alone or chained.
+`torchdyno.learners` fits a model: ridge regression, recursive least squares, FORCE, backprop and intrinsic plasticity, alone or chained.
 
 An assembly of diagonal modules with an adaptive step, trained end to end:
 
@@ -87,7 +87,7 @@ Ridge(
 ).fit(rocket, train, val)
 ```
 
-[`examples/`](examples) composes echo state networks, AdaDiag, SCN, coRNN, CfC, LRU, S4D and ROCKET. Run one from the repository root with `python -m examples.<name>`, e.g. `python -m examples.esn`.
+[`examples/`](examples) composes echo state networks, AdaDiag, SCN, coRNN, CfC, LRU, S4D and ROCKET, and a reservoir trained by FORCE to generate a wave. Run one from the repository root with `python -m examples.<name>`, e.g. `python -m examples.esn`.
 
 ## Documentation
 
