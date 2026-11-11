@@ -181,6 +181,29 @@ def test_matrices_initialise_in_half_precision(dtype):
         assert matrix.dense().isfinite().all()
 
 
+INVALID = {
+    "dense width": (lambda: Dense(0, 3), "positive"),
+    "diagonal size": (lambda: Diagonal(0), "positive"),
+    "block size": (lambda: BlockDiagonal([2, 0]), "positive"),
+    "block bound": (lambda: BlockDiagonal([2], bound=torch.sigmoid), "zero to zero"),
+    "too many pairs": (lambda: SkewCoupling([2] * 3, pairs=4), "3 pairs"),
+    "fraction above one": (lambda: SkewCoupling([2] * 3, pairs=1.5), r"\[0, 1\]"),
+    "missing block": (lambda: SkewCoupling([2] * 3, pairs=[(0, 3)]), "No such pair"),
+    "negative block": (lambda: SkewCoupling([2] * 3, pairs=[(-1, 0)]), "No such pair"),
+    "repeated pair": (
+        lambda: SkewCoupling([2] * 3, pairs=[(0, 1), (1, 0)]),
+        "listed twice",
+    ),
+    "unknown form": (lambda: SkewCoupling([2] * 3, pairs="rnig"), "'ring'"),
+}
+
+
+@pytest.mark.parametrize(("make", "match"), INVALID.values(), ids=INVALID.keys())
+def test_matrices_reject_shapes_they_cannot_build(make, match):
+    with pytest.raises(ValueError, match=match):
+        make()
+
+
 def test_complex_initialisers_draw_both_parts():
     torch.manual_seed(0)
     weight = Dense(300, 300, init=normal(0.5), dtype=torch.cfloat).dense()

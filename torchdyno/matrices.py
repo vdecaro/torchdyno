@@ -73,6 +73,12 @@ def _draw(init: Init, shape: tuple[int, ...], dtype: torch.dtype) -> Tensor:
     return tensor.to(dtype)
 
 
+def _sizes(*sizes: int) -> None:
+    """Raise unless every size is positive."""
+    if not sizes or min(sizes) < 1:
+        raise ValueError(f"Sizes must be positive, got {list(sizes)}.")
+
+
 def _value(stored: Tensor, is_complex: bool) -> Tensor:
     """The value a :func:`_parameter` stores."""
     return torch.view_as_complex(stored) if is_complex else stored
@@ -168,8 +174,12 @@ class Dense(nn.Module):
                 ``U(±1/sqrt(in_features))`` like ``torch.nn.Linear``.
             bias: initialiser of the bias, or ``None`` for no bias.
             dtype: the data type.
+
+        Raises:
+            ValueError: if a width is not positive.
         """
         super().__init__()
+        _sizes(in_features, out_features)
         self.in_features = in_features
         self.out_features = out_features
         self.is_complex = dtype.is_complex
@@ -220,8 +230,12 @@ class Diagonal(nn.Module):
             bound: applied to the stored entries on every use, e.g.
                 ``torch.tanh`` to keep them in ``(-1, 1)``.
             dtype: the data type.
+
+        Raises:
+            ValueError: if ``size`` is not positive.
         """
         super().__init__()
+        _sizes(size)
         self.in_features = self.out_features = size
         self.is_complex = dtype.is_complex
         self.weight = _parameter(_draw(init or uniform(1.0), (size,), dtype))
@@ -274,8 +288,15 @@ class BlockDiagonal(nn.Module):
             bound: applied to the masked entries on every use, e.g.
                 ``torch.tanh``; it must map zero to zero.
             dtype: the data type.
+
+        Raises:
+            ValueError: if a block size is not positive, or ``bound`` does not
+                map zero to zero.
         """
         super().__init__()
+        _sizes(*sizes)
+        if bound is not None and bound(torch.zeros(1, dtype=dtype)).ne(0).any():
+            raise ValueError("bound must map zero to zero, or masked entries leak.")
         size = sum(sizes)
         self.in_features = self.out_features = size
         weight = torch.zeros(size, size, dtype=dtype)
@@ -335,9 +356,11 @@ class SkewCoupling(nn.Module):
             dtype: the data type.
 
         Raises:
-            ValueError: if a pair couples a block with itself.
+            ValueError: if a block size is not positive, or ``pairs`` names
+                pairs that do not exist, repeat, or couple a block with itself.
         """
         super().__init__()
+        _sizes(*sizes)
         size = sum(sizes)
         self.in_features = self.out_features = size
         offsets = [0]
@@ -345,8 +368,6 @@ class SkewCoupling(nn.Module):
             offsets.append(offsets[-1] + width)
         weight = torch.zeros(size, size, dtype=dtype)
         for i, j in _coupling_pairs(len(sizes), pairs):
-            if i == j:
-                raise ValueError(f"A block cannot be coupled with itself: {i}.")
             entries = _draw(init or nn.init.orthogonal_, (sizes[i], sizes[j]), dtype)
             row, col = (i, j) if i < j else (j, i)
             block = entries if i < j else entries.T
@@ -376,11 +397,35 @@ class SkewCoupling(nn.Module):
 def _coupling_pairs(
     n_blocks: int, pairs: int | float | Literal["ring"] | list[tuple[int, int]]
 ) -> list[tuple[int, int]]:
-    if pairs == "ring":
+    candidates = [(i, j) for i in range(n_blocks - 1) for j in range(i + 1, n_blocks)]
+    if isinstance(pairs, str):
+        if pairs != "ring":
+            raise ValueError(
+                f"pairs must be a number, a list or 'ring', got {pairs!r}."
+            )
         return [(i, (i + 1) % n_blocks) for i in range(n_blocks)]
     if isinstance(pairs, list):
+        _check_pairs(n_blocks, pairs)
         return pairs
-    candidates = [(i, j) for i in range(n_blocks - 1) for j in range(i + 1, n_blocks)]
-    count = int(pairs * len(candidates)) if isinstance(pairs, float) else int(pairs)
-    picked = torch.randperm(len(candidates))[: min(count, len(candidates))]
+    if isinstance(pairs, float):
+        if not 0.0 <= pairs <= 1.0:
+            raise ValueError(f"A fraction of pairs must be in [0, 1], got {pairs}.")
+        pairs = int(pairs * len(candidates))
+    if not 0 <= pairs <= len(candidates):
+        raise ValueError(
+            f"{n_blocks} blocks have {len(candidates)} pairs, cannot couple {pairs}."
+        )
+    picked = torch.randperm(len(candidates))[:pairs]
     return [candidates[i] for i in picked.tolist()]
+
+
+def _check_pairs(n_blocks: int, pairs: list[tuple[int, int]]) -> None:
+    """Raise unless ``pairs`` are distinct pairs of distinct, existing blocks."""
+    unordered = [tuple(sorted(pair)) for pair in pairs]
+    for (i, j), pair in zip(unordered, pairs, strict=True):
+        if i == j:
+            raise ValueError(f"A block cannot be coupled with itself: {pair}.")
+        if not 0 <= i < j < n_blocks:
+            raise ValueError(f"No such pair among {n_blocks} blocks: {pair}.")
+    if len(set(unordered)) < len(unordered):
+        raise ValueError(f"A pair is listed twice: {pairs}.")
