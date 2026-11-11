@@ -11,7 +11,9 @@ from torchdyno.matrices import (
     SkewCoupling,
     normal,
     spectral,
+    to_dense,
     uniform,
+    update_,
 )
 
 MATRICES = {
@@ -212,3 +214,26 @@ def test_complex_initialisers_draw_both_parts():
     bounded = Dense(50, 50, init=uniform(0.3), dtype=torch.cfloat).dense()
     assert bounded.real.abs().max() <= 0.3 and bounded.imag.abs().max() <= 0.3
     assert bounded.imag.abs().max() > 0.25
+
+
+@pytest.mark.parametrize("name", MATRICES)
+def test_updates_keep_the_structure_of_the_matrix(name):
+    torch.manual_seed(0)
+    matrix = MATRICES[name]().requires_grad_(False)
+    before = to_dense(matrix).clone()
+    symmetric = torch.randn(6, 6)
+    update_(matrix, 1e-3 * (symmetric + symmetric.T))
+    after = to_dense(matrix)
+    if name == "skew_coupling":  # a symmetric update has no skew part
+        torch.testing.assert_close(after, before)
+    else:
+        assert not torch.equal(after, before)
+    assert torch.equal(after == 0, before == 0) or name == "dense"
+    assert not any(p.requires_grad for p in matrix.parameters())
+
+
+def test_dense_and_updates_take_an_nn_linear():
+    linear = nn.Linear(3, 2)
+    before = to_dense(linear).clone()
+    update_(linear, torch.ones(2, 3))
+    torch.testing.assert_close(to_dense(linear), before + 1)
