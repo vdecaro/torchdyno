@@ -128,14 +128,34 @@ def test_complex_dense_takes_real_input():
     x = torch.randn(5, 3, dtype=torch.float64)
     out = matrix(x)
     assert out.dtype == torch.cdouble
-    torch.testing.assert_close(out, x.to(torch.cdouble) @ matrix.weight.T + matrix.bias)
+    bias = torch.view_as_complex(matrix.bias)
+    torch.testing.assert_close(out, x.to(torch.cdouble) @ matrix.dense().T + bias)
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: Dense(3, 4, bias=normal(0.1), dtype=torch.cfloat),
+        lambda: Diagonal(3, dtype=torch.cfloat),
+    ],
+)
+@pytest.mark.parametrize("cast", [lambda m: m.double(), lambda m: m.to(torch.float64)])
+def test_complex_matrices_keep_both_parts_under_casts(make, cast):
+    torch.manual_seed(0)
+    matrix = make()
+    x = torch.randn(5, 3)
+    expected = matrix(x).to(torch.cdouble)
+    cast(matrix)
+    out = matrix(x.double())
+    assert out.dtype == torch.cdouble
+    torch.testing.assert_close(out, expected, rtol=1e-6, atol=1e-6)
 
 
 def test_complex_initialisers_draw_both_parts():
     torch.manual_seed(0)
-    weight = Dense(300, 300, init=normal(0.5), dtype=torch.cfloat).weight
+    weight = Dense(300, 300, init=normal(0.5), dtype=torch.cfloat).dense()
     for part in (weight.real, weight.imag):
         assert part.std().item() == pytest.approx(0.5, rel=0.02)
-    bounded = Dense(50, 50, init=uniform(0.3), dtype=torch.cfloat).weight
+    bounded = Dense(50, 50, init=uniform(0.3), dtype=torch.cfloat).dense()
     assert bounded.real.abs().max() <= 0.3 and bounded.imag.abs().max() <= 0.3
     assert bounded.imag.abs().max() > 0.25

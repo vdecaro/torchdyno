@@ -29,7 +29,7 @@ def _loop(a, s, w_in, x):
 def test_lru():
     torch.manual_seed(0)
     layer = lru(features=3, modes=6, dtype=DTYPE)
-    ring, w_in = layer.cell.transition, layer.cell.input.weight
+    ring, w_in = layer.cell.transition, layer.cell.input.dense()
     lam = torch.exp(-torch.exp(ring.nu)) * torch.exp(1j * ring.theta)
     gamma = torch.sqrt(1 - lam.abs() ** 2)
     x = torch.randn(25, 4, 3, dtype=DTYPE)
@@ -39,7 +39,7 @@ def test_lru():
 def test_s4d():
     torch.manual_seed(0)
     layer = s4d(features=3, modes=6, dtype=DTYPE)
-    zoh, w_in = layer.cell.transition, layer.cell.input.weight
+    zoh, w_in = layer.cell.transition, layer.cell.input.dense()
     a = -torch.exp(zoh.log_real) + 1j * zoh.imag
     a_bar = torch.exp(torch.exp(zoh.log_dt) * a)
     x = torch.randn(25, 4, 3, dtype=DTYPE)

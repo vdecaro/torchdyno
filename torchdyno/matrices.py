@@ -1,7 +1,10 @@
 """Matrices: how a weight matrix is structured, initialised and applied.
 
 Every matrix is a module whose ``forward(x)`` applies ``x Wᵀ`` without building
-``W`` when its structure allows it, and whose ``dense()`` returns ``W``.
+``W`` when its structure allows it, and whose ``dense()`` returns ``W``. A
+matrix's ``weight`` is its storage, which can differ from ``W``: masked,
+bounded, or, for a complex matrix, the real and imaginary parts in a last
+dimension of 2, so that casts such as ``.double()`` reach both parts.
 ``torch.nn.Linear`` works wherever a matrix is expected. Initialisers follow the
 ``torch.nn.init`` convention, callables that fill a tensor in place, so every
 ``torch.nn.init`` function can be passed directly. Freeze a matrix with
@@ -53,6 +56,16 @@ class LinearMap(Protocol):
 def _real(tensor: Tensor) -> Tensor:
     """A real view of ``tensor``: the real and imaginary parts if it is complex."""
     return torch.view_as_real(tensor) if tensor.is_complex() else tensor
+
+
+def _parameter(value: Tensor) -> nn.Parameter:
+    """A parameter storing ``value``; a complex one as its real and imaginary parts."""
+    return nn.Parameter(_real(value).clone() if value.is_complex() else value)
+
+
+def _value(stored: Tensor, is_complex: bool) -> Tensor:
+    """The value a :func:`_parameter` stores."""
+    return torch.view_as_complex(stored) if is_complex else stored
 
 
 def uniform(scale: float) -> Init:
@@ -137,12 +150,15 @@ class Dense(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = nn.Parameter(torch.empty(out_features, in_features, dtype=dtype))
+        self.is_complex = dtype.is_complex
+        weight = torch.empty(out_features, in_features, dtype=dtype)
+        (init or uniform(in_features**-0.5))(weight)
+        self.weight = _parameter(weight)
         self.bias = None
-        with torch.no_grad():
-            (init or uniform(in_features**-0.5))(self.weight)
-            if bias is not None:
-                self.bias = nn.Parameter(bias(torch.empty(out_features, dtype=dtype)))
+        if bias is not None:
+            offset = torch.empty(out_features, dtype=dtype)
+            bias(offset)
+            self.bias = _parameter(offset)
 
     def forward(self, x: Tensor) -> Tensor:
         """Apply the matrix.
@@ -153,13 +169,15 @@ class Dense(nn.Module):
         Returns:
             ``x Wᵀ + b``.
         """
-        if self.weight.is_complex() and not x.is_complex():
-            x = x.to(self.weight.dtype)
-        return F.linear(x, self.weight, self.bias)
+        weight = self.dense()
+        bias = None if self.bias is None else _value(self.bias, self.is_complex)
+        if self.is_complex and not x.is_complex():
+            x = x.to(weight.dtype)
+        return F.linear(x, weight, bias)
 
     def dense(self) -> Tensor:
         """The ``(out_features, in_features)`` matrix ``W``."""
-        return self.weight
+        return _value(self.weight, self.is_complex)
 
 
 class Diagonal(nn.Module):
@@ -184,14 +202,16 @@ class Diagonal(nn.Module):
         """
         super().__init__()
         self.in_features = self.out_features = size
-        self.weight = nn.Parameter(torch.empty(size, dtype=dtype))
+        self.is_complex = dtype.is_complex
+        weight = torch.empty(size, dtype=dtype)
+        (init or uniform(1.0))(weight)
+        self.weight = _parameter(weight)
         self.bound = bound
-        with torch.no_grad():
-            (init or uniform(1.0))(self.weight)
 
     def diagonal(self) -> Tensor:
         """The diagonal entries, after the bound."""
-        return self.weight if self.bound is None else self.bound(self.weight)
+        entries = _value(self.weight, self.is_complex)
+        return entries if self.bound is None else self.bound(entries)
 
     def forward(self, x: Tensor) -> Tensor:
         """Apply the matrix.
