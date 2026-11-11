@@ -82,7 +82,7 @@ class Gate(nn.Module):
         in_features: int,
         out_features: int,
         bounds: tuple[float, float] = (1e-5, 0.2),
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the gate.
 
@@ -90,12 +90,13 @@ class Gate(nn.Module):
             in_features: the input width.
             out_features: the state width.
             bounds: the ``(lo, hi)`` range of the step size.
-            dtype: the data type.
+            dtype: the data type; ``None`` takes torch's default.
 
         Raises:
             ValueError: unless ``0 <= lo < hi``.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         if not 0 <= bounds[0] < bounds[1]:
             raise ValueError(f"Need 0 <= lo < hi, got {bounds}.")
         self.in_features, self.out_features = in_features, out_features
@@ -443,7 +444,7 @@ class RingDiagonal(nn.Module):
         r_min: float = 0.0,
         r_max: float = 1.0,
         max_phase: float = 2 * math.pi,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the transition.
 
@@ -452,12 +453,14 @@ class RingDiagonal(nn.Module):
             r_min: the smallest initial magnitude.
             r_max: the largest initial magnitude.
             max_phase: the largest initial phase, in radians.
-            dtype: the real data type of ``nu`` and ``θ``.
+            dtype: the real data type of ``nu`` and ``θ``; ``None`` takes
+                torch's default.
 
         Raises:
             ValueError: unless ``0 <= r_min <= r_max <= 1`` and ``r_min < 1``.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         if not (0.0 <= r_min <= r_max <= 1.0 and r_min < 1.0):
             raise ValueError(
                 f"Need 0 <= r_min <= r_max <= 1 with r_min < 1, got {r_min}, {r_max}."
@@ -495,7 +498,7 @@ class ZOHDiagonal(nn.Module):
         size: int,
         dt_min: float = 1e-3,
         dt_max: float = 1e-1,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the transition.
 
@@ -503,12 +506,14 @@ class ZOHDiagonal(nn.Module):
             size: the number of modes.
             dt_min: the smallest initial step.
             dt_max: the largest initial step.
-            dtype: the real data type of the parameters.
+            dtype: the real data type of the parameters; ``None`` takes
+                torch's default.
 
         Raises:
             ValueError: unless ``0 < dt_min <= dt_max``.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         if not 0.0 < dt_min <= dt_max:
             raise ValueError(f"Need 0 < dt_min <= dt_max, got {dt_min}, {dt_max}.")
         self.log_real = nn.Parameter(torch.full((size,), math.log(0.5), dtype=dtype))

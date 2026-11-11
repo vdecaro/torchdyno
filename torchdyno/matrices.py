@@ -226,7 +226,7 @@ class Dense(nn.Module):
         out_features: int,
         init: Init | None = None,
         bias: Init | None = None,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the matrix.
 
@@ -236,12 +236,13 @@ class Dense(nn.Module):
             init: initialiser of ``W``; ``None`` draws from
                 ``U(±1/sqrt(in_features))`` like ``torch.nn.Linear``.
             bias: initialiser of the bias, or ``None`` for no bias.
-            dtype: the data type.
+            dtype: the data type; ``None`` takes torch's default.
 
         Raises:
             ValueError: if a width is not positive.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         _sizes(in_features, out_features)
         self.in_features = in_features
         self.out_features = out_features
@@ -282,7 +283,7 @@ class Diagonal(nn.Module):
         size: int,
         init: Init | None = None,
         bound: Callable[[Tensor], Tensor] | None = None,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the matrix.
 
@@ -292,12 +293,13 @@ class Diagonal(nn.Module):
                 ``U(-1, 1)``.
             bound: applied to the stored entries on every use, e.g.
                 ``torch.tanh`` to keep them in ``(-1, 1)``.
-            dtype: the data type.
+            dtype: the data type; ``None`` takes torch's default.
 
         Raises:
             ValueError: if ``size`` is not positive.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         _sizes(size)
         self.in_features = self.out_features = size
         self.is_complex = dtype.is_complex
@@ -340,7 +342,7 @@ class BlockDiagonal(nn.Module):
         sizes: list[int],
         init: Init | None = None,
         bound: Callable[[Tensor], Tensor] | None = None,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the matrix.
 
@@ -350,13 +352,14 @@ class BlockDiagonal(nn.Module):
                 ``torch.nn.init.orthogonal_``.
             bound: applied to the masked entries on every use, e.g.
                 ``torch.tanh``; it must map zero to zero.
-            dtype: the data type.
+            dtype: the data type; ``None`` takes torch's default.
 
         Raises:
             ValueError: if a block size is not positive, or ``bound`` does not
                 map zero to zero.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         _sizes(*sizes)
         if bound is not None and bound(torch.zeros(1, dtype=dtype)).ne(0).any():
             raise ValueError("bound must map zero to zero, or masked entries leak.")
@@ -405,7 +408,7 @@ class SkewCoupling(nn.Module):
         sizes: list[int],
         pairs: int | float | Literal["ring"] | list[tuple[int, int]],
         init: Init | None = None,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
     ):
         """Initializes the coupling.
 
@@ -416,13 +419,14 @@ class SkewCoupling(nn.Module):
                 next, or an explicit list of ``(i, j)`` pairs.
             init: initialiser of each coupling block; ``None`` uses
                 ``torch.nn.init.orthogonal_``.
-            dtype: the data type.
+            dtype: the data type; ``None`` takes torch's default.
 
         Raises:
             ValueError: if a block size is not positive, or ``pairs`` names
                 pairs that do not exist, repeat, or couple a block with itself.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         _sizes(*sizes)
         size = sum(sizes)
         self.in_features = self.out_features = size

@@ -257,7 +257,7 @@ class Kernels(NamedTuple):
 
 
 def rocket(
-    channels: int, length: int, kernels: int, dtype: torch.dtype = torch.float32
+    channels: int, length: int, kernels: int, dtype: torch.dtype | None = None
 ) -> Kernels:
     """Draw ROCKET's random kernels.
 
@@ -275,7 +275,8 @@ def rocket(
         channels: the number of input channels.
         length: the series length the kernels are drawn for.
         kernels: the number of kernels.
-        dtype: the data type of the weights and biases.
+        dtype: the data type of the weights and biases; ``None`` takes
+            torch's default.
 
     Returns:
         The kernels.
@@ -283,6 +284,7 @@ def rocket(
     Raises:
         ValueError: if ``length`` is shorter than the shortest kernel.
     """
+    dtype = dtype or torch.get_default_dtype()
     sizes = [size for size in (7, 9, 11) if size <= length]
     if not sizes:
         raise ValueError(f"length must be at least 7, the kernel minimum: {length}")
@@ -325,7 +327,7 @@ class RandomConv(nn.Module):
         channels: int,
         length: int,
         kernels: int = 10_000,
-        dtype: torch.dtype = torch.float32,
+        dtype: torch.dtype | None = None,
         draw: Callable[[int, int, int, torch.dtype], Kernels] = rocket,
     ):
         """Initializes the layer.
@@ -335,7 +337,7 @@ class RandomConv(nn.Module):
             length: the series length the kernels are drawn for; inputs must be
                 at least this long.
             kernels: the number of kernels.
-            dtype: the data type.
+            dtype: the data type; ``None`` takes torch's default.
             draw: ``draw(channels, length, kernels, dtype) -> Kernels``.
 
         Raises:
@@ -343,6 +345,7 @@ class RandomConv(nn.Module):
                 drawn kernels do not have ``kernels`` rows of ``channels``.
         """
         super().__init__()
+        dtype = dtype or torch.get_default_dtype()
         if channels < 1 or kernels < 1:
             raise ValueError(f"Need channels, kernels >= 1, got {channels}, {kernels}.")
         bank = draw(channels, length, kernels, dtype)

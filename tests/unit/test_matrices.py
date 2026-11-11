@@ -4,6 +4,12 @@ import pytest
 import torch
 from torch import nn
 
+from torchdyno.cells import (
+    Gate,
+    RingDiagonal,
+    ZOHDiagonal,
+)
+from torchdyno.layers import RandomConv
 from torchdyno.matrices import (
     BlockDiagonal,
     Dense,
@@ -237,3 +243,26 @@ def test_dense_and_updates_take_an_nn_linear():
     before = to_dense(linear).clone()
     update_(linear, torch.ones(2, 3))
     torch.testing.assert_close(to_dense(linear), before + 1)
+
+
+def test_parts_follow_torchs_default_dtype():
+    previous = torch.get_default_dtype()
+    torch.set_default_dtype(torch.float64)
+    try:
+        parts = [
+            Dense(3, 3),
+            Diagonal(3),
+            BlockDiagonal([3]),
+            SkewCoupling([2, 1], pairs="ring"),
+            Gate(2, 3),
+            RingDiagonal(3),
+            ZOHDiagonal(3),
+            RandomConv(1, length=20, kernels=3),
+        ]
+        for part in parts:
+            tensors = [*part.parameters(), *part.buffers()]
+            assert all(
+                t.dtype == torch.float64 for t in tensors if t.is_floating_point()
+            ), type(part).__name__
+    finally:
+        torch.set_default_dtype(previous)
