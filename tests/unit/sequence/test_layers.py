@@ -4,16 +4,20 @@ from torch import nn
 
 from tests.unit.compositions import lru
 from tests.unit.test_testing import SumCell
+from torchdyno.matrices import Dense
 from torchdyno.readout import (
     Last,
     Mean,
 )
 from torchdyno.sequence import (
     Concat,
+    Diff,
     RandomConv,
     Recurrent,
+    Reverse,
     Scan,
     Stack,
+    Sum,
 )
 
 
@@ -30,6 +34,42 @@ def test_stack_concatenates_layers_run_in_series():
     assert out.shape == (4, 2, 6)
     torch.testing.assert_close(out[..., :3], first(x))
     torch.testing.assert_close(out[..., 3:], nn.Sequential(first, second)(x))
+
+
+def test_stack_can_feed_the_input_to_every_layer():
+    first, second = Recurrent(SumCell()), Recurrent(SumCell())
+    second.cell.input = Dense(6, 3)
+    x = torch.randn(4, 2, 3)
+    out = Stack(first, second, feed_input=True)(x)
+    torch.testing.assert_close(out[..., 3:], second(torch.cat([first(x), x], -1)))
+
+
+def test_sum_adds_branches_and_its_slice_is_a_sum():
+    layer = Recurrent(SumCell())
+    x = torch.randn(4, 2, 3)
+    residual = Sum(nn.Identity(), layer)
+    torch.testing.assert_close(residual(x), x + layer(x))
+    assert isinstance(residual[1:], Sum)
+
+
+def test_reverse_runs_a_layer_backwards_and_skips_end_padding():
+    layer = Recurrent(SumCell())
+    x = torch.randn(5, 1, 3)
+    expected = layer(x.flip(0)).flip(0)
+    torch.testing.assert_close(Reverse(layer)(x), expected)
+    padded = torch.cat([x, torch.full((2, 1, 3), torch.nan)])
+    out = Reverse(layer)(padded)
+    torch.testing.assert_close(out[:5], expected)
+    assert out[5:].isnan().all()
+
+
+def test_diff_is_absent_at_the_first_step():
+    x = torch.randn(4, 2, 3)
+    out = Diff()(x)
+    assert out[0].isnan().all()
+    torch.testing.assert_close(out[1:], x[1:] - x[:-1])
+    torch.testing.assert_close(Mean()(out), (x[1:] - x[:-1]).mean(0))
+    torch.testing.assert_close(Last()(out), x[-1] - x[-2])
 
 
 LAYERS = {

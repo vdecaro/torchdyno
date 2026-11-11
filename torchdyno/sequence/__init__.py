@@ -21,6 +21,7 @@ from .cells import (
 from .combine import (
     Concat,
     Stack,
+    Sum,
 )
 from .convolution import (
     Kernels,
@@ -31,11 +32,16 @@ from .recurrent import (
     Recurrent,
     Scan,
 )
+from .time import (
+    Diff,
+    Reverse,
+)
 
 __all__ = [
     "Cell",
     "ClosedFormCell",
     "Concat",
+    "Diff",
     "EulerCell",
     "Gate",
     "Kernels",
@@ -45,9 +51,11 @@ __all__ = [
     "OscillatorCell",
     "RandomConv",
     "Recurrent",
+    "Reverse",
     "RingDiagonal",
     "Scan",
     "Stack",
+    "Sum",
     "ZOHDiagonal",
     "rocket",
 ]
