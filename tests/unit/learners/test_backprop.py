@@ -56,12 +56,31 @@ def test_scheduler_steps_once_per_epoch():
 
     def scheduler(opt):
         seen.append(opt)
-        return torch.optim.lr_scheduler.MultiStepLR(opt, [2], 0.1)
+        return torch.optim.lr_scheduler.StepLR(opt, step_size=1, gamma=0.5)
 
     Backprop(nn.CrossEntropyLoss(), lr=1.0, epochs=3, scheduler=scheduler).fit(
-        _model(), _data()
+        _model(),
+        _data() + _data(1),  # two batches an epoch
     )
-    assert seen[0].param_groups[0]["lr"] == pytest.approx(0.1)
+    assert seen[0].param_groups[0]["lr"] == pytest.approx(0.5**3)
+
+
+@pytest.mark.parametrize("val", [None, _data(1)])
+def test_plateau_scheduler_steps_on_the_validation_score_or_the_loss(val):
+    seen = []
+
+    class Plateau(torch.optim.lr_scheduler.ReduceLROnPlateau):
+        def step(self, metrics):
+            seen.append(metrics)
+            super().step(metrics)
+
+    result = Backprop(
+        nn.CrossEntropyLoss(),
+        epochs=2,
+        scheduler=Plateau,
+        score_fn=lambda p, t: 0.25,
+    ).fit(_model(), _data(), val)
+    assert seen == result.history["val_score" if val else "train_loss"]
 
 
 def test_records_val_score_per_epoch():

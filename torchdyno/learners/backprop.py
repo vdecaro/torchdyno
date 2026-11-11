@@ -71,7 +71,8 @@ class Backprop:
             lr: learning rate (used only for the string optimizers).
             epochs: number of passes over ``train``.
             scheduler: optional ``optimizer -> LRScheduler``, stepped once per
-                epoch.
+                epoch; a ``ReduceLROnPlateau`` is stepped on the validation
+                score, or on the training loss without one.
             score_fn: optional ``score_fn(prediction, target) -> float``
                 evaluated on ``val`` each epoch, recorded in
                 ``history["val_score"]``.
@@ -120,11 +121,13 @@ class Backprop:
                     total += loss.item()
                     n += 1
                 history["train_loss"].append(total / max(n, 1))
-                if sched is not None:
-                    sched.step()
                 if val is not None and self.score_fn is not None:
                     history.setdefault("val_score", []).append(
                         evaluate(model, val, self.score_fn, self.washout)
                     )
+                if isinstance(sched, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    sched.step(history.get("val_score", history["train_loss"])[-1])
+                elif sched is not None:
+                    sched.step()
 
         return FitResult(history=history, best={"epochs": self.epochs}, rng=rng)
