@@ -371,13 +371,17 @@ class RingDiagonal(nn.Module):
             dtype: the real data type of ``nu`` and ``θ``.
 
         Raises:
-            ValueError: unless ``0 <= r_min <= r_max <= 1``.
+            ValueError: unless ``0 <= r_min <= r_max <= 1`` and ``r_min < 1``.
         """
         super().__init__()
-        if not 0.0 <= r_min <= r_max <= 1.0:
-            raise ValueError(f"Need 0 <= r_min <= r_max <= 1, got {r_min}, {r_max}.")
-        magnitude_sq = torch.rand(size, dtype=dtype) * (r_max**2 - r_min**2) + r_min**2
-        self.nu = nn.Parameter(torch.log(-0.5 * torch.log(magnitude_sq)))
+        if not (0.0 <= r_min <= r_max <= 1.0 and r_min < 1.0):
+            raise ValueError(
+                f"Need 0 <= r_min <= r_max <= 1 with r_min < 1, got {r_min}, {r_max}."
+            )
+        # in float64, so a draw just below r_max = 1 keeps a finite nu
+        draw = torch.rand(size, dtype=dtype).to(torch.float64)
+        magnitude_sq = draw * (r_max**2 - r_min**2) + r_min**2
+        self.nu = nn.Parameter(torch.log(-0.5 * torch.log(magnitude_sq)).to(dtype))
         self.theta = nn.Parameter(max_phase * torch.rand(size, dtype=dtype))
 
     def forward(self) -> tuple[Tensor, Tensor]:
@@ -433,9 +437,9 @@ class ZOHDiagonal(nn.Module):
         """
         a = torch.complex(-torch.exp(self.log_real), self.imag)
         dt = torch.exp(self.log_dt)
-        # (Ā - 1) / A in complex128: in complex64, small ΔA loses it to cancellation
+        # (Ā - 1) / A by expm1, in complex128: small ΔA loses exp - 1 to cancellation
         a128 = a.to(torch.complex128)
-        scale = (torch.exp(dt.to(torch.float64) * a128) - 1) / a128
+        scale = torch.expm1(dt.to(torch.float64) * a128) / a128
         return torch.exp(dt * a), scale.to(a.dtype)
 
 

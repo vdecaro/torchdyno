@@ -89,3 +89,18 @@ def test_training_keeps_the_transition_stable(build):
     a, _ = layer.cell.transition()
     assert (a.abs() < 1).all()
     assert not torch.equal(layer.cell.input.weight, before)
+
+
+def test_ring_rejects_a_ring_with_no_room_below_one():
+    with pytest.raises(ValueError, match="r_min < 1"):
+        RingDiagonal(4, r_min=1.0, r_max=1.0)
+    assert RingDiagonal(10_000, r_min=0.999, r_max=1.0).nu.isfinite().all()
+
+
+def test_zero_order_hold_keeps_its_scale_as_a_vanishes():
+    zoh = ZOHDiagonal(3, dt_min=1e-2, dt_max=1e-2)
+    with torch.no_grad():
+        zoh.log_real.copy_(torch.tensor([-30.0, -45.0, -80.0]))
+        zoh.imag.zero_()
+    _, scale = zoh()
+    torch.testing.assert_close(scale, torch.full((3,), 1e-2, dtype=scale.dtype))
