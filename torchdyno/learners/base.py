@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import (
     dataclass,
     field,
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import (
         Callable,
         Iterable,
+        Iterator,
     )
 
     from torch import Tensor
@@ -44,6 +46,24 @@ class FitResult:
     rng: dict[str, Any] | None = None
 
 
+@contextmanager
+def restore_modes(model: nn.Module) -> Iterator[None]:
+    """Restore the train/eval mode of every module of ``model`` on exit.
+
+    Args:
+        model: the model whose modes to restore.
+
+    Yields:
+        Nothing; switch modes freely inside the block.
+    """
+    modes = [(module, module.training) for module in model.modules()]
+    try:
+        yield
+    finally:
+        for module, training in modes:
+            module.training = training
+
+
 def evaluate(
     model: nn.Module,
     loader: Iterable[tuple[Tensor, Tensor]],
@@ -59,9 +79,9 @@ def evaluate(
     Returns:
         The score of the predictions for every batch, concatenated.
     """
-    model.eval()
     preds, targets = [], []
-    with torch.no_grad():
+    with torch.no_grad(), restore_modes(model):
+        model.eval()
         for x, y in loader:
             preds.append(model(x))
             targets.append(y)
@@ -78,7 +98,8 @@ def feature_rows(
 
     Time-aligned ``(T, B, H)`` features give one row per timestep, in time
     order, after dropping the first ``washout`` steps; pooled ``(B, H)``
-    features give one row per sequence. Integer targets become one-hot.
+    features give one row per sequence. Integer targets become one-hot. The
+    features are computed in eval mode, so dropout is off.
 
     Args:
         model: a sequential model whose last module is the ``nn.Linear`` readout.
@@ -98,7 +119,8 @@ def feature_rows(
     readout = model[-1]
     if not isinstance(readout, nn.Linear):
         raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
-    features = model[:-1](x)
+    with restore_modes(model):
+        features = model[:-1].eval()(x)
     if features.ndim == 3:  # noqa: PLR2004 (T, B, H): fit every timestep
         features, y = features[washout:], y[washout:]
     elif washout:

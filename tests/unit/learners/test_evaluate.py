@@ -1,8 +1,13 @@
+import pytest
 import torch
 from torch import nn
 
 from tests.unit.compositions import reservoir
-from torchdyno.learners import evaluate
+from torchdyno.learners import (
+    Backprop,
+    Ridge,
+    evaluate,
+)
 from torchdyno.pooling import Last
 
 
@@ -31,3 +36,35 @@ def test_concatenates_time_first_outputs_on_the_batch_dim():
 
 def test_concatenates_pooled_outputs_on_dim_zero():
     _concat_check(True, lambda b: (b, 2), cat_dim=0)
+
+
+def _dropout_model():
+    torch.manual_seed(0)
+    return nn.Sequential(nn.Dropout(0.5), Last(), nn.Linear(4, 1)).train()
+
+
+def test_ridge_fits_on_features_without_dropout():
+    x, y = torch.randn(3, 64, 4), torch.randn(64, 1)
+    model, reference = _dropout_model(), _dropout_model().eval()
+    Ridge(1e-3).fit(model, [(x, y)])
+    Ridge(1e-3).fit(reference, [(x, y)])
+    torch.testing.assert_close(model[-1].weight, reference[-1].weight)
+
+
+@pytest.mark.parametrize("training", [True, False])
+@pytest.mark.parametrize(
+    "fit",
+    [
+        lambda m, d: Ridge(1e-3).fit(m, d),
+        lambda m, d: evaluate(m, d, lambda p, t: 0.0),
+        lambda m, d: Backprop(nn.MSELoss(), epochs=1).fit(m, d),
+        lambda m, d: Backprop(nn.MSELoss(), epochs=1, score_fn=lambda p, t: 0.0).fit(
+            m, d, d
+        ),
+    ],
+)
+def test_leaves_every_module_in_the_mode_it_found(fit, training):
+    model = _dropout_model().train(training)
+    model[0].train(not training)
+    fit(model, [(torch.randn(3, 8, 4), torch.randn(8, 1))])
+    assert [m.training for m in model] == [not training, training, training]

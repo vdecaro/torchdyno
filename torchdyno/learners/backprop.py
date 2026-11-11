@@ -12,6 +12,7 @@ import torch
 from torchdyno.learners.base import (
     FitResult,
     evaluate,
+    restore_modes,
 )
 from torchdyno.reproducibility import get_rng_state
 
@@ -47,7 +48,7 @@ class Backprop:
     """Train every parameter of a model that requires grad.
 
     Parts frozen with ``requires_grad_(False)`` stay bit-identical while the rest
-    trains.
+    trains. The model trains in train mode and ends in the modes it started in.
     """
 
     def __init__(
@@ -102,22 +103,23 @@ class Backprop:
         sched = self.scheduler(opt) if self.scheduler is not None else None
         history: dict[str, list[float]] = {"train_loss": []}
 
-        for _ in range(self.epochs):
-            model.train()
-            total, n = 0.0, 0
-            for x, y in train:
-                opt.zero_grad()
-                loss = self.loss_fn(model(x), y)
-                loss.backward()
-                opt.step()
-                total += loss.item()
-                n += 1
-            history["train_loss"].append(total / max(n, 1))
-            if sched is not None:
-                sched.step()
-            if val is not None and self.score_fn is not None:
-                history.setdefault("val_score", []).append(
-                    evaluate(model, val, self.score_fn)
-                )
+        with restore_modes(model):
+            for _ in range(self.epochs):
+                model.train()
+                total, n = 0.0, 0
+                for x, y in train:
+                    opt.zero_grad()
+                    loss = self.loss_fn(model(x), y)
+                    loss.backward()
+                    opt.step()
+                    total += loss.item()
+                    n += 1
+                history["train_loss"].append(total / max(n, 1))
+                if sched is not None:
+                    sched.step()
+                if val is not None and self.score_fn is not None:
+                    history.setdefault("val_score", []).append(
+                        evaluate(model, val, self.score_fn)
+                    )
 
         return FitResult(history=history, best={"epochs": self.epochs}, rng=rng)
