@@ -94,4 +94,4 @@ def test_leaves_the_washout_out_of_the_loss_and_the_validation_score():
     )
     result = trainer.fit(nn.Sequential(nn.Linear(2, 2)), data, data)
     assert seen == [7]
-    assert result.history["val_score"] == [7.0]
+    assert result.history["val_score"] == [7.0 * 4]  # one row per kept timestep

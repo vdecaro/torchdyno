@@ -11,14 +11,8 @@ from torchdyno.learners import (
 from torchdyno.pooling import Last
 
 
-def _concat_check(pooled, y_shape, cat_dim):
+def _seen(parts, batches):
     torch.manual_seed(0)
-    parts = (
-        [reservoir(1, 8), Last(), nn.Linear(8, 2)]
-        if pooled
-        else [reservoir(1, 8), nn.Linear(8, 2)]
-    )
-    batches = [(torch.randn(5, b, 1), torch.randn(*y_shape(b))) for b in (3, 2)]
     seen = {}
 
     def probe(pred, target):
@@ -26,16 +20,24 @@ def _concat_check(pooled, y_shape, cat_dim):
         return 0.0
 
     evaluate(nn.Sequential(*parts), batches, probe)
-    assert torch.equal(seen["target"], torch.cat([y for _, y in batches], dim=cat_dim))
-    assert seen["pred"].shape[cat_dim] == 5
+    return seen["pred"], seen["target"]
 
 
-def test_concatenates_time_first_outputs_on_the_batch_dim():
-    _concat_check(False, lambda b: (5, b, 2), cat_dim=1)
+def test_scores_time_aligned_outputs_as_one_row_per_timestep():
+    # sequences of different lengths combine row by row
+    batches = [
+        (torch.randn(t, b, 1), torch.randn(t, b, 2)) for t, b in ((5, 3), (4, 2))
+    ]
+    pred, target = _seen([reservoir(1, 8), nn.Linear(8, 2)], batches)
+    assert pred.shape == (5 * 3 + 4 * 2, 2)
+    assert torch.equal(target, torch.cat([y.flatten(0, 1) for _, y in batches]))
 
 
 def test_concatenates_pooled_outputs_on_dim_zero():
-    _concat_check(True, lambda b: (b, 2), cat_dim=0)
+    batches = [(torch.randn(5, b, 1), torch.randn(b, 2)) for b in (3, 2)]
+    pred, target = _seen([reservoir(1, 8), Last(), nn.Linear(8, 2)], batches)
+    assert pred.shape == (5, 2)
+    assert torch.equal(target, torch.cat([y for _, y in batches]))
 
 
 def _dropout_model():
@@ -79,8 +81,8 @@ def test_leaves_the_washout_unscored():
 
     x, y = torch.randn(6, 2, 3), torch.randn(6, 2, 3)
     evaluate(nn.Identity(), [(x, y)], probe, washout=4)
-    assert torch.equal(seen["pred"], x[4:])
-    assert torch.equal(seen["target"], y[4:])
+    assert torch.equal(seen["pred"], x[4:].flatten(0, 1))
+    assert torch.equal(seen["target"], y[4:].flatten(0, 1))
 
 
 @pytest.mark.parametrize(

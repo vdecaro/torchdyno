@@ -107,7 +107,9 @@ def evaluate(
             as for the learners that fit after a washout.
 
     Returns:
-        The score of the predictions for every batch, concatenated.
+        The score of the predictions for every batch, concatenated. Time-aligned
+        ``(T, B, O)`` predictions are scored as one ``(O,)`` row per timestep, so
+        batches of different lengths combine.
     """
     preds, targets = [], []
     with torch.no_grad(), restore_modes(model):
@@ -116,9 +118,10 @@ def evaluate(
             pred, target = drop_washout(model(x), y, washout)
             preds.append(pred)
             targets.append(target)
-    # time-first (T, B, O) predictions batch on dim 1; pooled (B, C) on dim 0
-    dim = 1 if preds[0].ndim == 3 else 0  # noqa: PLR2004
-    return score_fn(torch.cat(preds, dim=dim), torch.cat(targets, dim=dim))
+    if preds[0].ndim == 3:  # noqa: PLR2004 time-aligned: rows of (T·B, O)
+        preds = [pred.flatten(0, 1) for pred in preds]
+        targets = [target.flatten(0, 1) for target in targets]
+    return score_fn(torch.cat(preds), torch.cat(targets))
 
 
 @torch.no_grad()
