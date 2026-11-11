@@ -91,7 +91,8 @@ def feature_rows(
 
     Raises:
         TypeError: if the last module is not an ``nn.Linear``.
-        ValueError: if ``washout`` is set for pooled features.
+        ValueError: if ``washout`` is set for pooled features, or the targets
+            don't match the features and the readout's outputs.
     """
     readout = model[-1]
     if not isinstance(readout, nn.Linear):
@@ -101,7 +102,15 @@ def feature_rows(
         features, y = features[washout:], y[washout:]
     elif washout:
         raise ValueError("washout needs time-aligned (T, B, H) features.")
+    shape = tuple(y.shape)
     if not y.is_floating_point():
         y = F.one_hot(y, readout.out_features)
+    if y.shape != (*features.shape[:-1], readout.out_features):
+        raise ValueError(
+            f"Targets of shape {shape} don't match features of shape "
+            f"{tuple(features.shape)} and a readout with {readout.out_features} "
+            "outputs: pass float targets with the outputs last, or integer class "
+            "indices."
+        )
     features = features.reshape(-1, features.shape[-1]).double()
     return features, y.reshape(features.shape[0], -1).double()

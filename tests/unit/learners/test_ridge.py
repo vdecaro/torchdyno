@@ -3,7 +3,10 @@ import torch
 from torch import nn
 
 from tests.unit.compositions import reservoir
-from torchdyno.learners import Ridge
+from torchdyno.learners import (
+    RLS,
+    Ridge,
+)
 from torchdyno.pooling import Last
 
 DTYPE = torch.float64
@@ -95,6 +98,21 @@ def test_classifies_pooled_states_against_one_hot_labels():
     )
     assert (model(x).argmax(-1) == labels).double().mean() > 0.9
     assert all(torch.equal(model[0].state_dict()[k], v) for k, v in before.items())
+
+
+@pytest.mark.parametrize("learner", [Ridge(), RLS()])
+@pytest.mark.parametrize(
+    ("features", "labels"),
+    [
+        ((8, 4), torch.zeros(8)),  # float class indices
+        ((5, 8, 4), torch.zeros(8, dtype=torch.long)),  # per-sequence labels, unpooled
+        ((8, 4), torch.zeros(8, 1, dtype=torch.long)),  # an extra label dimension
+    ],
+)
+def test_rejects_targets_that_do_not_match_the_readout(learner, features, labels):
+    model = nn.Sequential(nn.Identity(), nn.Linear(4, 3))
+    with pytest.raises(ValueError, match="don't match"):
+        learner.fit(model, [(torch.randn(*features), labels)])
 
 
 def test_selects_l2_on_validation():
