@@ -18,6 +18,20 @@ if TYPE_CHECKING:
     )
 
 
+def _check(x: Tensor, h0: Tensor | None = None, state_size: int = 0) -> None:
+    """Raise unless ``x`` is a ``(T, B, F)`` sequence and ``h0`` a ``(B, H)`` state."""
+    if x.ndim != 3 or x.shape[0] == 0:  # noqa: PLR2004
+        raise ValueError(
+            f"Expected a time-first (T, B, F) sequence with T >= 1, got shape "
+            f"{tuple(x.shape)}; add a batch dimension with x.unsqueeze(1)."
+        )
+    if h0 is not None and h0.shape != (x.shape[1], state_size):
+        raise ValueError(
+            f"h0 must be (B, state_size) = {(x.shape[1], state_size)}, got "
+            f"{tuple(h0.shape)}."
+        )
+
+
 class Recurrent(nn.Module):
     """Run a cell over time, one step after the other."""
 
@@ -40,7 +54,11 @@ class Recurrent(nn.Module):
 
         Returns:
             The state after every timestep, shape ``(T, B, state_size)``.
+
+        Raises:
+            ValueError: if ``x`` or ``h0`` has the wrong shape.
         """
+        _check(x, h0, self.cell.state_size)
         h = x.new_zeros(x.shape[1], self.cell.state_size) if h0 is None else h0
         states = []
         for u in x:
@@ -77,7 +95,11 @@ class Scan(Recurrent):
 
         Returns:
             The state after every timestep, shape ``(T, B, state_size)``.
+
+        Raises:
+            ValueError: if ``x`` or ``h0`` has the wrong shape.
         """
+        _check(x, h0, self.cell.state_size)
         a, b = self.cell.coefficients(x)
         if h0 is not None:
             modes = self.cell.modes
@@ -223,7 +245,13 @@ class RandomConv(nn.Module):
         Returns:
             The kernel outputs, shape ``(T, B, kernels)``, NaN where a kernel
             without padding produced nothing.
+
+        Raises:
+            ValueError: if ``x`` is not a ``(T, B, channels)`` sequence.
         """
+        _check(x)
+        if x.shape[-1] != self.channels:
+            raise ValueError(f"Expected {self.channels} channels, got {x.shape[-1]}.")
         steps = x.shape[0]
         signal = x.permute(1, 2, 0)  # conv1d wants (B, C, T)
         out = signal.new_full((x.shape[1], self.kernels, steps), torch.nan)
