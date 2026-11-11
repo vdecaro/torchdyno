@@ -31,6 +31,10 @@ class Recurrent(nn.Module):
     With ``carry=True`` the layer keeps its last state, detached, and the next
     call starts from it, e.g. for truncated backprop through time or a stream
     fed in chunks; :meth:`reset_state` starts over.
+
+    To speed the loop up, compile the cell in place, ``layer.cell.compile()``,
+    rather than the model: compiling the model unrolls the loop over every
+    timestep, which takes far longer to compile.
     """
 
     def __init__(self, cell: Cell, carry: bool = False):
