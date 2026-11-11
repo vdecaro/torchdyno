@@ -6,7 +6,9 @@ from torch import nn
 
 from torchdyno.layers import (
     Concat,
+    Kernels,
     RandomConv,
+    rocket,
 )
 from torchdyno.learners import Ridge
 from torchdyno.pooling import (
@@ -128,3 +130,23 @@ def test_rejects_sizes_it_cannot_draw_for(kwargs, match):
 def test_rejects_series_shorter_than_drawn_for():
     with pytest.raises(ValueError, match="at least 20 steps"):
         RandomConv(1, length=20, kernels=4)(torch.randn(19, 2, 1))
+
+
+def test_takes_its_kernels_from_any_draw():
+    def fixed(channels, length, kernels, dtype):  # noqa: ARG001
+        weight = torch.zeros(kernels, channels, 3, dtype=dtype)
+        weight[:, :, 1] = 1.0  # identity kernels
+        ones, zeros = torch.ones(kernels, dtype=torch.long), torch.zeros(kernels)
+        return Kernels(weight, zeros.to(dtype), 3 * ones, ones, ones)
+
+    x = torch.randn(10, 2, 1)
+    out = RandomConv(1, length=10, kernels=4, draw=fixed)(x)
+    torch.testing.assert_close(out, x.expand(-1, -1, 4))
+
+
+def test_rejects_a_draw_of_another_shape():
+    def wrong(channels, length, kernels, dtype):
+        return rocket(channels, length, kernels + 1, dtype)
+
+    with pytest.raises(ValueError, match="kernels by channels"):
+        RandomConv(1, length=20, kernels=4, draw=wrong)

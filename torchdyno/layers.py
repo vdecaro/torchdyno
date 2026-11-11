@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from typing import (
     TYPE_CHECKING,
+    NamedTuple,
     cast,
     overload,
 )
@@ -14,6 +15,8 @@ import torch.nn.functional as F
 from torch import nn
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from torch import Tensor
 
     from torchdyno.cells import (
@@ -23,10 +26,12 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Concat",
+    "Kernels",
     "RandomConv",
     "Recurrent",
     "Scan",
     "Stack",
+    "rocket",
 ]
 
 
@@ -233,22 +238,79 @@ class Concat(nn.ModuleList):
         return torch.cat([module(x) for module in self], dim=-1)
 
 
-class RandomConv(nn.Module):
-    """ROCKET's random convolution kernels: ``(T, B, C) -> (T, B, kernels)``.
+class Kernels(NamedTuple):
+    """A bank of 1D convolution kernels, as :class:`RandomConv` holds them.
+
+    Args:
+        weight: ``(K, C, L)`` weights, zero-padded past each kernel's length.
+        bias: ``(K,)`` biases.
+        lengths: ``(K,)`` kernel lengths, at most ``L``.
+        dilations: ``(K,)`` dilations.
+        paddings: ``(K,)`` paddings on each side.
+    """
+
+    weight: Tensor
+    bias: Tensor
+    lengths: Tensor
+    dilations: Tensor
+    paddings: Tensor
+
+
+def rocket(
+    channels: int, length: int, kernels: int, dtype: torch.dtype = torch.float32
+) -> Kernels:
+    """Draw ROCKET's random kernels.
 
     From Dempster, Petitjean and Webb, "ROCKET: exceptionally fast and accurate
     time series classification using random convolutional kernels" (2020), with
     the multivariate kernels of its reference implementations. Each kernel has:
 
     - a length drawn from those of {7, 9, 11} that fit the series;
-    - N(0, 1) weights, centred on each of a random subset of channels;
+    - N(0, 1) weights, centred, on each of a random subset of channels;
     - a U(-1, 1) bias;
     - a dilation ``int(2 ** U(0, log2((length - 1) / (L - 1))))``;
     - padding ``(L - 1) d // 2`` half of the time.
 
-    The kernels are fixed buffers. A kernel without padding produces
-    ``T - (L - 1) d`` outputs, aligned to the end, and the positions before them
-    are NaN: pool with :class:`~torchdyno.pooling.PPV` and
+    Args:
+        channels: the number of input channels.
+        length: the series length the kernels are drawn for.
+        kernels: the number of kernels.
+        dtype: the data type of the weights and biases.
+
+    Returns:
+        The kernels.
+
+    Raises:
+        ValueError: if ``length`` is shorter than the shortest kernel.
+    """
+    sizes = [size for size in (7, 9, 11) if size <= length]
+    if not sizes:
+        raise ValueError(f"length must be at least 7, the kernel minimum: {length}")
+    lengths = torch.tensor(sizes)[torch.randint(len(sizes), (kernels,))]
+    weight = torch.zeros(kernels, channels, 11, dtype=dtype)
+    dilations = torch.ones(kernels, dtype=torch.long)
+    paddings = torch.zeros(kernels, dtype=torch.long)
+    for k, size in enumerate(lengths.tolist()):
+        used = int(2 ** (torch.rand(()).item() * math.log2(min(channels, size) + 1)))
+        taps = torch.randn(used, size, dtype=dtype)
+        weight[k, torch.randperm(channels)[:used], :size] = taps - taps.mean(
+            dim=1, keepdim=True
+        )
+        spread = math.log2((length - 1) / (size - 1))
+        dilations[k] = max(1, int(2 ** (torch.rand(()).item() * spread)))
+        if torch.rand(()).item() < 0.5:  # noqa: PLR2004
+            paddings[k] = (size - 1) * int(dilations[k]) // 2
+    bias = torch.empty(kernels, dtype=dtype).uniform_(-1, 1)
+    return Kernels(weight, bias, lengths, dilations, paddings)
+
+
+class RandomConv(nn.Module):
+    """Fixed random convolution kernels: ``(T, B, C) -> (T, B, kernels)``.
+
+    The kernels come from ``draw``, :func:`rocket` by default, the way a matrix
+    takes an initialiser, and are kept as buffers. A kernel without padding
+    produces ``T - (L - 1) d`` outputs, aligned to the end, and the positions
+    before them are NaN: pool with :class:`~torchdyno.pooling.PPV` and
     :class:`~torchdyno.pooling.Max`, which skip them.
     """
 
@@ -264,6 +326,7 @@ class RandomConv(nn.Module):
         length: int,
         kernels: int = 10_000,
         dtype: torch.dtype = torch.float32,
+        draw: Callable[[int, int, int, torch.dtype], Kernels] = rocket,
     ):
         """Initializes the layer.
 
@@ -273,41 +336,26 @@ class RandomConv(nn.Module):
                 at least this long.
             kernels: the number of kernels.
             dtype: the data type.
+            draw: ``draw(channels, length, kernels, dtype) -> Kernels``.
 
         Raises:
-            ValueError: if ``channels`` or ``kernels`` is not positive, or
-                ``length`` is shorter than the shortest kernel.
+            ValueError: if ``channels`` or ``kernels`` is not positive, or the
+                drawn kernels do not have ``kernels`` rows of ``channels``.
         """
         super().__init__()
         if channels < 1 or kernels < 1:
             raise ValueError(f"Need channels, kernels >= 1, got {channels}, {kernels}.")
-        sizes = [size for size in (7, 9, 11) if size <= length]
-        if not sizes:
-            raise ValueError(f"length must be at least 7, the kernel minimum: {length}")
+        bank = draw(channels, length, kernels, dtype)
+        if bank.weight.shape[:2] != (kernels, channels):
+            raise ValueError(
+                f"draw gave {tuple(bank.weight.shape[:2])} kernels by channels, "
+                f"not {(kernels, channels)}."
+            )
         self.channels = channels
         self.length = length
         self.kernels = kernels
-        lengths = torch.tensor(sizes)[torch.randint(len(sizes), (kernels,))]
-        weight = torch.zeros(kernels, channels, 11, dtype=dtype)
-        dilations = torch.ones(kernels, dtype=torch.long)
-        paddings = torch.zeros(kernels, dtype=torch.long)
-        for k, size in enumerate(lengths.tolist()):
-            used = int(
-                2 ** (torch.rand(()).item() * math.log2(min(channels, size) + 1))
-            )
-            taps = torch.randn(used, size, dtype=dtype)
-            weight[k, torch.randperm(channels)[:used], :size] = taps - taps.mean(
-                dim=1, keepdim=True
-            )
-            spread = math.log2((length - 1) / (size - 1))
-            dilations[k] = max(1, int(2 ** (torch.rand(()).item() * spread)))
-            if torch.rand(()).item() < 0.5:  # noqa: PLR2004
-                paddings[k] = (size - 1) * int(dilations[k]) // 2
-        self.register_buffer("weight", weight)
-        self.register_buffer("bias", torch.empty(kernels, dtype=dtype).uniform_(-1, 1))
-        self.register_buffer("lengths", lengths)
-        self.register_buffer("dilations", dilations)
-        self.register_buffer("paddings", paddings)
+        for name, value in bank._asdict().items():
+            self.register_buffer(name, value)
 
     def forward(self, x: Tensor) -> Tensor:
         """Convolve every kernel with ``x``.
