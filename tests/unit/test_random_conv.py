@@ -1,5 +1,6 @@
 import math
 
+import pytest
 import torch
 from torch import nn
 
@@ -103,3 +104,27 @@ def test_features_separate_two_kinds_of_series():
     Ridge(l2=1.0, standardize=True).fit(model, [(x[:, :80], labels[:80])])
     accuracy = (model(x[:, 80:]).argmax(-1) == labels[80:]).float().mean()
     assert accuracy > 0.9
+
+
+def test_short_series_get_only_kernels_that_fit():
+    layer = RandomConv(1, length=8, kernels=50)
+    assert set(layer.lengths.tolist()) == {7}
+    assert layer(torch.randn(8, 2, 1)).shape == (8, 2, 50)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"channels": 0, "length": 20}, "channels"),
+        ({"channels": 1, "length": 20, "kernels": 0}, "kernels"),
+        ({"channels": 1, "length": 6}, "at least 7"),
+    ],
+)
+def test_rejects_sizes_it_cannot_draw_for(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        RandomConv(**kwargs)
+
+
+def test_rejects_series_shorter_than_drawn_for():
+    with pytest.raises(ValueError, match="at least 20 steps"):
+        RandomConv(1, length=20, kernels=4)(torch.randn(19, 2, 1))

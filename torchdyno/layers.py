@@ -177,7 +177,7 @@ class RandomConv(nn.Module):
     time series classification using random convolutional kernels" (2020), with
     the multivariate kernels of its reference implementations. Each kernel has:
 
-    - a length drawn from {7, 9, 11};
+    - a length drawn from those of {7, 9, 11} that fit the series;
     - N(0, 1) weights, centred on each of a random subset of channels;
     - a U(-1, 1) bias;
     - a dilation ``int(2 ** U(0, log2((length - 1) / (L - 1))))``;
@@ -206,15 +206,25 @@ class RandomConv(nn.Module):
 
         Args:
             channels: the number of input channels ``C``.
-            length: the series length the dilations are drawn for; inputs must be
+            length: the series length the kernels are drawn for; inputs must be
                 at least this long.
             kernels: the number of kernels.
             dtype: the data type.
+
+        Raises:
+            ValueError: if ``channels`` or ``kernels`` is not positive, or
+                ``length`` is shorter than the shortest kernel.
         """
         super().__init__()
+        if channels < 1 or kernels < 1:
+            raise ValueError(f"Need channels, kernels >= 1, got {channels}, {kernels}.")
+        sizes = [size for size in (7, 9, 11) if size <= length]
+        if not sizes:
+            raise ValueError(f"length must be at least 7, the kernel minimum: {length}")
         self.channels = channels
+        self.length = length
         self.kernels = kernels
-        lengths = torch.tensor([7, 9, 11])[torch.randint(3, (kernels,))]
+        lengths = torch.tensor(sizes)[torch.randint(len(sizes), (kernels,))]
         weight = torch.zeros(kernels, channels, 11, dtype=dtype)
         dilations = torch.ones(kernels, dtype=torch.long)
         paddings = torch.zeros(kernels, dtype=torch.long)
@@ -247,11 +257,17 @@ class RandomConv(nn.Module):
             without padding produced nothing.
 
         Raises:
-            ValueError: if ``x`` is not a ``(T, B, channels)`` sequence.
+            ValueError: if ``x`` is not a ``(T, B, channels)`` sequence at least
+                ``length`` long.
         """
         _check(x)
         if x.shape[-1] != self.channels:
             raise ValueError(f"Expected {self.channels} channels, got {x.shape[-1]}.")
+        if x.shape[0] < self.length:
+            raise ValueError(
+                f"The kernels were drawn for series of at least {self.length} steps, "
+                f"got {x.shape[0]}."
+            )
         steps = x.shape[0]
         signal = x.permute(1, 2, 0)  # conv1d wants (B, C, T)
         out = signal.new_full((x.shape[1], self.kernels, steps), torch.nan)
