@@ -24,5 +24,13 @@ class Accuracy(Metric):
 
         Returns:
             The accuracy.
+
+        Raises:
+            ValueError: unless ``pred`` has one more dimension than ``target``.
         """
+        if pred.shape[:-1] != target.shape:
+            raise ValueError(
+                f"pred {tuple(pred.shape)} must be target {tuple(target.shape)} "
+                "with a class dimension added."
+            )
         return (pred.argmax(dim=-1) == target).float().mean().item()

@@ -13,6 +13,7 @@ from torchdyno.metrics import (
     MSE,
     NRMSE,
 )
+from torchdyno.metrics.base import require_same_shape
 from torchdyno.tasks.base import Task
 
 if TYPE_CHECKING:
@@ -39,5 +40,9 @@ class Regression(Task):
 
         Returns:
             The scalar loss.
+
+        Raises:
+            ValueError: if the shapes differ.
         """
+        require_same_shape(pred, target)
         return torch.mean((pred - target) ** 2)

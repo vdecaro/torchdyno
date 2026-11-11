@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from torchdyno.metrics.base import Metric
+from torchdyno.metrics.base import (
+    Metric,
+    require_same_shape,
+)
 
 if TYPE_CHECKING:
     from torch import Tensor
@@ -24,7 +27,11 @@ class MSE(Metric):
 
         Returns:
             The mean squared error.
+
+        Raises:
+            ValueError: if the shapes differ.
         """
+        require_same_shape(pred, target)
         return torch.mean((pred - target) ** 2).item()
 
 
@@ -48,7 +55,11 @@ class NRMSE(Metric):
 
         Returns:
             The RMSE divided by the standard deviation of the target.
+
+        Raises:
+            ValueError: if the shapes differ.
         """
+        require_same_shape(pred, target)
         mse = torch.mean((pred - target) ** 2)
         var = torch.var(target, unbiased=False)
         return torch.sqrt(mse / (var + self.eps)).item()

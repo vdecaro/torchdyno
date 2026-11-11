@@ -44,6 +44,18 @@ def test_classification_task():
     assert task.primary.mode == "max"
 
 
+@pytest.mark.parametrize("score", [MSE(), NRMSE(), Regression().loss])
+def test_regression_scores_reject_targets_of_another_shape(score):
+    target = torch.randn(8)
+    with pytest.raises(ValueError, match="same shape"):
+        score(target[:, None], target)
+
+
+def test_accuracy_rejects_predictions_without_a_class_dimension():
+    with pytest.raises(ValueError, match="class dimension"):
+        Accuracy()(torch.randn(8, 3), torch.zeros(8, 1, dtype=torch.long))
+
+
 def test_rejects_unknown_primary():
     with pytest.raises(ValueError, match="Unknown primary"):
         Regression(primary="mae")
