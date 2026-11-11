@@ -7,7 +7,10 @@ from tests.unit.compositions import (
     adadiag,
     reservoir,
 )
-from torchdyno.layers import Stack
+from torchdyno.layers import (
+    Recurrent,
+    Stack,
+)
 from torchdyno.learners import (
     IntrinsicPlasticity,
     Ridge,
@@ -17,23 +20,19 @@ DTYPE = torch.float64
 
 
 def _expected_update(cell, x, lr, mu, sigma):
-    """The intrinsic plasticity rule for one batch, written from its equations."""
+    """The intrinsic plasticity rule over one batch, written from its equations."""
     w_in, b_in, w = cell.input.weight, cell.input.bias, cell.recurrent.weight
+    gain, bias = cell.gain.clone(), cell.bias.clone()
     state = torch.zeros(x.shape[1], cell.state_size, dtype=x.dtype)
-    pres, outs = [], []
+    var = sigma**2
     for u in x:
         pre = u @ w_in.T + b_in + state @ w.T
-        out = torch.tanh(cell.gain * pre + cell.bias)
+        out = torch.tanh(gain * pre + bias)
         state = (1 - cell.leak) * state + cell.leak * out
-        pres.append(pre)
-        outs.append(out)
-    pre, h, var = torch.stack(pres), torch.stack(outs), sigma**2
-    d_bias = -mu / var + (h / var) * (2 * var + 1 - h**2 + mu * h)
-    d_gain = -1 / cell.gain + d_bias * pre
-    return (
-        cell.gain - lr * F.normalize(d_gain.sum(0).mean(0), dim=0),
-        cell.bias - lr * F.normalize(d_bias.sum(0).mean(0), dim=0),
-    )
+        d_bias = -mu / var + (out / var) * (2 * var + 1 - out**2 + mu * out)
+        d_gain = -1 / gain + d_bias * pre
+        gain, bias = gain - lr * d_gain.mean(0), bias - lr * d_bias.mean(0)
+    return gain, bias
 
 
 def test_one_batch_follows_the_update_rule():
@@ -76,7 +75,7 @@ def test_then_ridge_fits_the_readout():
 
 
 def test_needs_tanh_leaky_cells():
-    with pytest.raises(ValueError, match="needs a LeakyCell"):
+    with pytest.raises(ValueError, match="gain, a bias"):
         IntrinsicPlasticity().fit(nn.Sequential(adadiag(), nn.Linear(12, 1)), [])
     model = nn.Sequential(reservoir(), nn.Linear(16, 1))
     model[0].cell.activation = torch.relu
@@ -94,3 +93,27 @@ def test_accepts_every_form_of_tanh(activation):
 def test_needs_a_positive_target_spread():
     with pytest.raises(ValueError, match="sigma"):
         IntrinsicPlasticity(sigma=0.0)
+
+
+class ScaledCell(nn.Module):
+    """A cell of the user's own with the gain, bias and preactivation IP adapts."""
+
+    def __init__(self):
+        super().__init__()
+        self.state_size = 4
+        self.input = nn.Linear(2, 4)
+        self.gain = nn.Parameter(torch.ones(4))
+        self.bias = nn.Parameter(torch.zeros(4))
+        self.activation = nn.Tanh()
+
+    def preactivation(self, u, h):
+        return self.input(u) + 0.5 * h
+
+    def forward(self, u, h):
+        return self.activation(self.gain * self.preactivation(u, h) + self.bias)
+
+
+def test_adapts_any_cell_with_a_gain_a_bias_and_a_preactivation():
+    model = nn.Sequential(Recurrent(ScaledCell()), nn.Linear(4, 1))
+    IntrinsicPlasticity(lr=0.05).fit(model, [(torch.randn(10, 3, 2), None)])
+    assert not torch.equal(model[0].cell.gain, torch.ones(4))

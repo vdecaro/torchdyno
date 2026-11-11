@@ -1,8 +1,9 @@
 """Intrinsic plasticity before the ridge readout of an echo state network.
 
-The same reservoir is read out twice: as initialised, and after intrinsic
-plasticity has adapted its gains and biases. Run with
-``python -m examples.esn_plasticity``.
+A strong input drives about half of the reservoir's units into saturation. The
+same reservoir is read out twice: as initialised, and after intrinsic
+plasticity has adapted its gains and biases toward unsaturated outputs. Run
+with ``python -m examples.esn_plasticity``.
 """
 
 import copy
@@ -21,7 +22,7 @@ data = lorenz_benchmark(length=4000, target_delay=5, washout=100)
 esn = nn.Sequential(
     Recurrent(
         LeakyCell(
-            input=Dense(3, 300, init=uniform(1.0), bias=uniform(0.5)),
+            input=Dense(3, 300, init=uniform(6.0), bias=uniform(3.0)),
             recurrent=Dense(300, 300, init=spectral(uniform(1.0), 0.95)),
             leak=0.5,
         )
@@ -29,9 +30,7 @@ esn = nn.Sequential(
     nn.Linear(300, 3),
 )
 adapted = copy.deepcopy(esn)
-IntrinsicPlasticity(lr=0.5, mu=0.0, sigma=0.2, epochs=10).fit(
-    adapted, data.train_loader
-)
+IntrinsicPlasticity(lr=1e-3, sigma=0.2).fit(adapted, data.train_loader)
 
 for name, model in [("without", esn), ("with", adapted)]:
     Ridge(l2=1e-6, washout=data.washout).fit(model, data.train_loader)
