@@ -9,13 +9,19 @@ A plain ``nn.Linear`` then maps the features to outputs.
 """
 
 from .pooling import (
+    LSPV,
+    MIPV,
+    MPV,
+    PPV,
     Last,
     Max,
     Mean,
-    PPV,
 )
 
 __all__ = [
+    "LSPV",
+    "MIPV",
+    "MPV",
     "PPV",
     "Last",
     "Max",

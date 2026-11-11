@@ -1,6 +1,10 @@
+import pytest
 import torch
 
 from torchdyno.readout import (
+    LSPV,
+    MIPV,
+    MPV,
     PPV,
     Last,
     Max,
@@ -35,3 +39,28 @@ def test_max_and_ppv_without_missing_positions():
     x = torch.randn(7, 3, 4)
     torch.testing.assert_close(Max()(x), x.amax(0))
     torch.testing.assert_close(PPV()(x), (x > 0).float().mean(0))
+
+
+def multirocket(series):
+    """MPV, MIPV and LSPV of one series, as MultiRocket loops over it."""
+    values = series[~series.isnan()].tolist()
+    positive = [i for i, v in enumerate(values) if v > 0]
+    longest = run = 0
+    for v in values:
+        run = run + 1 if v > 0 else 0
+        longest = max(longest, run)
+    mpv = sum(values[i] for i in positive) / len(positive) if positive else 0.0
+    mipv = sum(positive) / len(positive) if positive else -1.0
+    return mpv, mipv, float(longest)
+
+
+def test_multirocket_pooling_matches_a_loop_and_skips_unproduced_positions():
+    torch.manual_seed(0)
+    x = torch.randn(12, 3, 4, dtype=torch.float64)
+    x[:3, 0] = torch.nan  # unproduced leading positions
+    x[:, 1, 2] = -1.0  # never positive
+    pooled = [pool(x) for pool in (MPV(), MIPV(), LSPV())]
+    for b in range(3):
+        for h in range(4):
+            expected = multirocket(x[:, b, h])
+            assert tuple(p[b, h].item() for p in pooled) == pytest.approx(expected)

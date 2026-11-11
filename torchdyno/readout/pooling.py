@@ -17,6 +17,9 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 __all__ = [
+    "LSPV",
+    "MIPV",
+    "MPV",
     "PPV",
     "Last",
     "Max",
@@ -87,3 +90,65 @@ class PPV(nn.Module):
         """
         produced = (~x.isnan()).sum(dim=0)
         return (x > 0).sum(dim=0).to(x.dtype) / produced.to(x.dtype)
+
+
+class MPV(nn.Module):
+    """The mean of the positive values over time, as in MultiRocket."""
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Pool over time.
+
+        Args:
+            x: the sequence, shape ``(T, B, H)``.
+
+        Returns:
+            The mean of the values above zero, ``0`` where there are none, shape
+            ``(B, H)``.
+        """
+        positive = x > 0
+        total = x.where(positive, 0).sum(dim=0)
+        return total / positive.sum(dim=0).clamp(min=1).to(x.dtype)
+
+
+class MIPV(nn.Module):
+    """The mean index of the positive values, as in MultiRocket.
+
+    Indices count the produced positions only, so they start at zero at a
+    sequence's first step, whatever padding or unproduced positions precede it.
+    """
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Pool over time.
+
+        Args:
+            x: the sequence, shape ``(T, B, H)``.
+
+        Returns:
+            The mean index of the values above zero, ``-1`` where there are none,
+            shape ``(B, H)``.
+        """
+        positive = x > 0
+        index = (~x.isnan()).cumsum(dim=0) - 1
+        count = positive.sum(dim=0)
+        mean = index.where(positive, 0).sum(dim=0).to(x.dtype) / count.clamp(min=1)
+        return mean.where(count > 0, -1)
+
+
+class LSPV(nn.Module):
+    """The longest stretch of consecutive positive values, as in MultiRocket."""
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Pool over time.
+
+        Args:
+            x: the sequence, shape ``(T, B, H)``.
+
+        Returns:
+            The length of the longest run of values above zero, shape
+            ``(B, H)``.
+        """
+        positive = x > 0
+        count = positive.cumsum(dim=0)
+        # a run's length is the count since the last position that was not positive
+        before = count.where(~positive, 0).cummax(dim=0).values
+        return (count - before).amax(dim=0).to(x.dtype)
