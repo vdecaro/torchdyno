@@ -55,8 +55,13 @@ class Gate(nn.Module):
             out_features: the state width.
             bounds: the ``(lo, hi)`` range of the step size.
             dtype: the data type.
+
+        Raises:
+            ValueError: unless ``0 <= lo < hi``.
         """
         super().__init__()
+        if not 0 <= bounds[0] < bounds[1]:
+            raise ValueError(f"Need 0 <= lo < hi, got {bounds}.")
         self.in_features, self.out_features = in_features, out_features
         self.lo, self.hi = bounds
         self.input = nn.Linear(in_features, out_features, dtype=dtype)
@@ -105,9 +110,12 @@ class EulerCell(Cell):
             activation: the activation ``φ``.
 
         Raises:
-            ValueError: if a matrix or the step does not match the state.
+            ValueError: if a matrix or the step does not match the state, or a
+                constant step is not positive.
         """
         super().__init__()
+        if not isinstance(step, nn.Module) and not torch.all(torch.as_tensor(step) > 0):
+            raise ValueError(f"step must be > 0, got {step}.")
         size = recurrent.out_features
         _width("recurrent.in_features", recurrent.in_features, size)
         _width("input.out_features", input.out_features, size)
@@ -173,9 +181,13 @@ class LeakyCell(Cell):
             activation: the activation ``φ``.
 
         Raises:
-            ValueError: if a matrix or the leak does not match the state.
+            ValueError: if a matrix or the leak does not match the state, or the
+                leak is outside ``(0, 1]``.
         """
         super().__init__()
+        rate = torch.as_tensor(leak)
+        if not torch.all((rate > 0) & (rate <= 1)):
+            raise ValueError(f"leak must be in (0, 1], got {leak}.")
         size = recurrent.out_features
         _width("recurrent.in_features", recurrent.in_features, size)
         _width("input.out_features", input.out_features, size)
@@ -189,7 +201,8 @@ class LeakyCell(Cell):
             self.leak = leak
         self.activation = activation
         self.state_size = recurrent.out_features
-        dtype = next(recurrent.parameters()).dtype
+        weight = next(recurrent.parameters(), None)
+        dtype = torch.get_default_dtype() if weight is None else weight.dtype
         self.gain = nn.Parameter(torch.ones(self.state_size, dtype=dtype))
         self.bias = nn.Parameter(torch.zeros(self.state_size, dtype=dtype))
 
@@ -257,7 +270,7 @@ class OscillatorCell(Cell):
                 matrix does not match the state.
         """
         super().__init__()
-        if min(dt, gamma, epsilon) <= 0:
+        if not all(value > 0 for value in (dt, gamma, epsilon)):
             raise ValueError(
                 f"dt, gamma and epsilon must be > 0, got {dt}, {gamma}, {epsilon}."
             )
@@ -316,7 +329,7 @@ class ClosedFormCell(Cell):
                 four equal parts.
         """
         super().__init__()
-        if dt <= 0:
+        if not dt > 0:
             raise ValueError(f"dt must be > 0, got {dt}.")
         if heads.out_features % 4:
             raise ValueError(

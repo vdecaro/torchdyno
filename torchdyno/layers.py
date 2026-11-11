@@ -85,7 +85,15 @@ class Scan(Recurrent):
 
         Args:
             cell: the linear cell to run.
+
+        Raises:
+            TypeError: if the cell has no ``coefficients(u)`` to scan.
         """
+        if not hasattr(cell, "coefficients"):
+            raise TypeError(
+                f"Scan needs a linear cell with coefficients(u), such as "
+                f"LinearDiagonalCell, not {type(cell).__name__}; run it with Recurrent."
+            )
         super().__init__(cell)
 
     def forward(self, x: Tensor, h0: Tensor | None = None) -> Tensor:

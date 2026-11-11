@@ -1,5 +1,7 @@
 """Each composition against a loop written from its update equation."""
 
+import math
+
 import pytest
 import torch
 from torch import nn
@@ -22,6 +24,7 @@ from torchdyno.cells import (
 )
 from torchdyno.layers import (
     Recurrent,
+    Scan,
     Stack,
 )
 from torchdyno.matrices import Dense
@@ -223,3 +226,40 @@ MISMATCHED = {
 def test_cells_reject_parts_that_do_not_match_the_state(make):
     with pytest.raises(ValueError, match=r"width|four equal parts"):
         make()
+
+
+OUT_OF_RANGE = {
+    "gate bounds": lambda: Gate(2, 4, bounds=(0.2, 0.1)),
+    "euler step": lambda: EulerCell(Dense(2, 4), Dense(4, 4), step=0.0),
+    "euler step tensor": lambda: EulerCell(
+        Dense(2, 4), Dense(4, 4), step=torch.tensor([0.1, 0.1, -0.1, 0.1])
+    ),
+    "leak above one": lambda: LeakyCell(Dense(2, 4), Dense(4, 4), leak=1.5),
+    "leak of zero": lambda: LeakyCell(Dense(2, 4), Dense(4, 4), leak=0.0),
+    "oscillator nan dt": lambda: OscillatorCell(Dense(2, 4), Dense(8, 4), dt=math.nan),
+    "closed form nan dt": lambda: ClosedFormCell(
+        nn.Identity(), Dense(6, 8), dt=math.nan
+    ),
+}
+
+
+@pytest.mark.parametrize("make", OUT_OF_RANGE.values(), ids=OUT_OF_RANGE.keys())
+def test_cells_reject_constants_out_of_range(make):
+    with pytest.raises(ValueError, match=r"must be|Need"):
+        make()
+
+
+def test_leaky_cell_takes_a_matrix_without_parameters():
+    class Identity(nn.Module):
+        in_features = out_features = 4
+
+        def forward(self, x):
+            return x
+
+    cell = LeakyCell(Dense(2, 4), Identity())
+    assert cell.gain.dtype == torch.get_default_dtype()
+
+
+def test_scan_needs_a_linear_cell():
+    with pytest.raises(TypeError, match="Scan needs a linear cell"):
+        Scan(EulerCell(Dense(2, 4), Dense(4, 4)))
