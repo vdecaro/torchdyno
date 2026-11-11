@@ -28,6 +28,12 @@ class Cell(nn.Module):
     state_size: int
 
 
+def _width(name: str, actual: int, expected: int) -> None:
+    """Raise unless a part of a cell has the width the state needs."""
+    if actual != expected:
+        raise ValueError(f"{name} has width {actual}, but the state needs {expected}.")
+
+
 class Gate(nn.Module):
     """A per-unit step size in ``(lo, hi)``, driven by the input and the state.
 
@@ -51,6 +57,7 @@ class Gate(nn.Module):
             dtype: the data type.
         """
         super().__init__()
+        self.in_features, self.out_features = in_features, out_features
         self.lo, self.hi = bounds
         self.input = nn.Linear(in_features, out_features, dtype=dtype)
         self.state = nn.Parameter(torch.zeros(out_features, dtype=dtype))
@@ -96,8 +103,22 @@ class EulerCell(Cell):
             step: the step size ``ε``: a constant, a tensor kept as a buffer,
                 or a module ``step(u, v) -> ε``.
             activation: the activation ``φ``.
+
+        Raises:
+            ValueError: if a matrix or the step does not match the state.
         """
         super().__init__()
+        size = recurrent.out_features
+        _width("recurrent.in_features", recurrent.in_features, size)
+        _width("input.out_features", input.out_features, size)
+        if coupling is not None:
+            _width("coupling.in_features", coupling.in_features, size)
+            _width("coupling.out_features", coupling.out_features, size)
+        step_width = getattr(step, "out_features", None)
+        if isinstance(step_width, int):
+            _width("step.out_features", step_width, size)
+        if isinstance(step, torch.Tensor) and step.numel() != 1:
+            _width("step", step.shape[-1], size)
         self.input = input
         self.recurrent = recurrent
         self.coupling = coupling
@@ -150,8 +171,16 @@ class LeakyCell(Cell):
             leak: the leak rate ``a``: a constant, or a per-unit tensor kept as
                 a buffer.
             activation: the activation ``φ``.
+
+        Raises:
+            ValueError: if a matrix or the leak does not match the state.
         """
         super().__init__()
+        size = recurrent.out_features
+        _width("recurrent.in_features", recurrent.in_features, size)
+        _width("input.out_features", input.out_features, size)
+        if isinstance(leak, torch.Tensor) and leak.numel() != 1:
+            _width("leak", leak.shape[-1], size)
         self.input = input
         self.recurrent = recurrent
         if isinstance(leak, torch.Tensor):
@@ -224,13 +253,18 @@ class OscillatorCell(Cell):
             activation: the activation ``φ``.
 
         Raises:
-            ValueError: if ``dt``, ``gamma`` or ``epsilon`` is not positive.
+            ValueError: if ``dt``, ``gamma`` or ``epsilon`` is not positive, or a
+                matrix does not match the state.
         """
         super().__init__()
         if min(dt, gamma, epsilon) <= 0:
             raise ValueError(
                 f"dt, gamma and epsilon must be > 0, got {dt}, {gamma}, {epsilon}."
             )
+        _width(
+            "recurrent.in_features", recurrent.in_features, 2 * recurrent.out_features
+        )
+        _width("input.out_features", input.out_features, recurrent.out_features)
         self.input = input
         self.recurrent = recurrent
         self.dt = dt
@@ -278,11 +312,16 @@ class ClosedFormCell(Cell):
             dt: the elapsed time per step.
 
         Raises:
-            ValueError: if ``dt`` is not positive.
+            ValueError: if ``dt`` is not positive, or ``heads`` does not output
+                four equal parts.
         """
         super().__init__()
         if dt <= 0:
             raise ValueError(f"dt must be > 0, got {dt}.")
+        if heads.out_features % 4:
+            raise ValueError(
+                f"heads must output four equal parts, got {heads.out_features}."
+            )
         self.backbone = backbone
         self.heads = heads
         self.dt = dt
@@ -417,8 +456,14 @@ class LinearDiagonalCell(Cell):
         Args:
             transition: a module whose ``forward()`` returns ``(a, s)``.
             input: the complex input matrix ``B``.
+
+        Raises:
+            ValueError: if the transition has another number of modes than the
+                input matrix.
         """
         super().__init__()
+        with torch.no_grad():
+            _width("transition", transition()[0].shape[-1], input.out_features)
         self.transition = transition
         self.input = input
         self.modes = input.out_features

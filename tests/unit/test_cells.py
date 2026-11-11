@@ -14,8 +14,11 @@ from tests.unit.compositions import (
 from torchdyno.cells import (
     ClosedFormCell,
     EulerCell,
+    Gate,
     LeakyCell,
+    LinearDiagonalCell,
     OscillatorCell,
+    RingDiagonal,
 )
 from torchdyno.layers import (
     Recurrent,
@@ -193,3 +196,30 @@ def test_tensor_hyperparameters_follow_the_cell(make, name):
     fresh.load_state_dict(cell.state_dict())
     assert torch.equal(getattr(fresh, name), getattr(cell, name))
     assert getattr(cell.double(), name).dtype == torch.float64
+
+
+MISMATCHED = {
+    "euler input": lambda: EulerCell(Dense(2, 3), Dense(4, 4)),
+    "euler recurrent": lambda: EulerCell(Dense(2, 4), Dense(3, 4)),
+    "euler coupling": lambda: EulerCell(Dense(2, 4), Dense(4, 4), Dense(4, 3)),
+    "euler gate": lambda: EulerCell(Dense(2, 4), Dense(4, 4), step=Gate(2, 1)),
+    "euler step tensor": lambda: EulerCell(
+        Dense(2, 4), Dense(4, 4), step=torch.ones(3)
+    ),
+    "leaky input": lambda: LeakyCell(Dense(2, 1), Dense(4, 4)),
+    "leaky leak tensor": lambda: LeakyCell(
+        Dense(2, 4), Dense(4, 4), leak=torch.ones(2)
+    ),
+    "oscillator recurrent": lambda: OscillatorCell(Dense(2, 4), Dense(4, 4)),
+    "oscillator input": lambda: OscillatorCell(Dense(2, 3), Dense(8, 4)),
+    "closed form heads": lambda: ClosedFormCell(nn.Identity(), Dense(6, 6)),
+    "linear diagonal": lambda: LinearDiagonalCell(
+        RingDiagonal(3), Dense(2, 4, dtype=torch.cfloat)
+    ),
+}
+
+
+@pytest.mark.parametrize("make", MISMATCHED.values(), ids=MISMATCHED.keys())
+def test_cells_reject_parts_that_do_not_match_the_state(make):
+    with pytest.raises(ValueError, match=r"width|four equal parts"):
+        make()
