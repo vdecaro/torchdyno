@@ -79,3 +79,19 @@ def test_accepts_optimizer_callable_and_rejects_unknown_names():
     assert len(trainer.fit(_model(), _data()).history["train_loss"]) == 2
     with pytest.raises(ValueError, match="Unknown optimizer"):
         Backprop(nn.CrossEntropyLoss(), optimizer="lbfgs").fit(_model(), _data())
+
+
+def test_leaves_the_washout_out_of_the_loss_and_the_validation_score():
+    seen = []
+
+    def loss_fn(pred, target):
+        seen.append(len(pred))
+        return torch.mean((pred - target) ** 2)
+
+    data = [(torch.randn(10, 4, 2), torch.randn(10, 4, 2))]
+    trainer = Backprop(
+        loss_fn, epochs=1, score_fn=lambda p, t: float(len(p)), washout=3
+    )
+    result = trainer.fit(nn.Sequential(nn.Linear(2, 2)), data, data)
+    assert seen == [7]
+    assert result.history["val_score"] == [7.0]

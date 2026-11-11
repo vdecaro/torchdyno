@@ -11,6 +11,7 @@ import torch
 
 from torchdyno.learners.base import (
     FitResult,
+    drop_washout,
     evaluate,
     restore_modes,
 )
@@ -59,6 +60,7 @@ class Backprop:
         epochs: int = 10,
         scheduler: Callable[[torch.optim.Optimizer], Any] | None = None,
         score_fn: Callable[[Tensor, Tensor], float] | None = None,
+        washout: int = 0,
     ):
         """Initializes the trainer.
 
@@ -73,6 +75,8 @@ class Backprop:
             score_fn: optional ``score_fn(prediction, target) -> float``
                 evaluated on ``val`` each epoch, recorded in
                 ``history["val_score"]``.
+            washout: leading timesteps of time-aligned predictions left out of
+                the loss and the validation score.
         """
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -80,6 +84,7 @@ class Backprop:
         self.epochs = epochs
         self.scheduler = scheduler
         self.score_fn = score_fn
+        self.washout = washout
 
     def fit(
         self,
@@ -109,7 +114,7 @@ class Backprop:
                 total, n = 0.0, 0
                 for x, y in train:
                     opt.zero_grad()
-                    loss = self.loss_fn(model(x), y)
+                    loss = self.loss_fn(*drop_washout(model(x), y, self.washout))
                     loss.backward()
                     opt.step()
                     total += loss.item()
@@ -119,7 +124,7 @@ class Backprop:
                     sched.step()
                 if val is not None and self.score_fn is not None:
                     history.setdefault("val_score", []).append(
-                        evaluate(model, val, self.score_fn)
+                        evaluate(model, val, self.score_fn, self.washout)
                     )
 
         return FitResult(history=history, best={"epochs": self.epochs}, rng=rng)
