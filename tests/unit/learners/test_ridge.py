@@ -143,6 +143,22 @@ def test_selects_l2_on_validation():
     assert result.best["score"] == pytest.approx(mse(model(x[30:]), y[30:]))
 
 
+def test_scores_validation_after_the_washout():
+    torch.manual_seed(0)
+    x = torch.randn(30, 2, 6, dtype=DTYPE)
+    y = x @ torch.randn(6, 1, dtype=DTYPE)
+    y[:5] += 100.0  # a transient the readout never fits
+
+    def mse(pred, target):
+        return torch.mean((pred - target) ** 2).item()
+
+    model = _model(6, 1, bias=True)
+    result = Ridge(l2=[1e-6, 1e-3], washout=5, score_fn=mse, mode="min").fit(
+        model, [(x, y)], [(x, y)]
+    )
+    assert result.best["score"] == pytest.approx(mse(model(x)[5:], y[5:]))
+
+
 def test_needs_a_linear_readout_and_validation_to_select():
     with pytest.raises(TypeError, match=r"nn\.Linear"):
         Ridge().fit(nn.Sequential(nn.Identity(), nn.Identity()), [])

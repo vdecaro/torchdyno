@@ -33,4 +33,6 @@ l2 = torch.logspace(-8, -2, 4).tolist()
 Ridge(l2, washout=100, score_fn=data.task.primary, mode="min").fit(
     esn, data.train_loader, data.val_loader
 )
-print(f"ESN test NRMSE: {evaluate(esn, data.eval_loader, data.task.primary):.4f}")
+print(
+    f"ESN test NRMSE: {evaluate(esn, data.eval_loader, data.task.primary, washout=100):.2e}"
+)

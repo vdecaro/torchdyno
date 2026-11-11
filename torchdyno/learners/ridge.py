@@ -48,8 +48,8 @@ class Ridge:
         Args:
             l2: the L2 penalty, or candidates to select among on ``val``
                 (requires ``score_fn`` and ``mode``).
-            washout: leading timesteps to discard; only for time-aligned
-                features.
+            washout: leading timesteps to discard, when fitting and when
+                scoring ``val``; only for time-aligned features.
             standardize: scale every feature to unit variance before solving,
                 folding the scale back into the weight.
             score_fn: ``score_fn(prediction, target) -> float`` ranking the L2
@@ -108,7 +108,7 @@ class Ridge:
             scores = {}
             for l2 in candidates:
                 _set(readout, *solve(l2))
-                scores[l2] = evaluate(model, val, self.score_fn)
+                scores[l2] = evaluate(model, val, self.score_fn, self.washout)
             pick = max if self.mode == "max" else min
             chosen = pick(scores, key=scores.__getitem__)
             best = {"l2": chosen, "score": scores[chosen]}

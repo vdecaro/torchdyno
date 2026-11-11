@@ -68,3 +68,29 @@ def test_leaves_every_module_in_the_mode_it_found(fit, training):
     model[0].train(not training)
     fit(model, [(torch.randn(3, 8, 4), torch.randn(8, 1))])
     assert [m.training for m in model] == [not training, training, training]
+
+
+def test_leaves_the_washout_unscored():
+    seen = {}
+
+    def probe(pred, target):
+        seen["pred"], seen["target"] = pred, target
+        return 0.0
+
+    x, y = torch.randn(6, 2, 3), torch.randn(6, 2, 3)
+    evaluate(nn.Identity(), [(x, y)], probe, washout=4)
+    assert torch.equal(seen["pred"], x[4:])
+    assert torch.equal(seen["target"], y[4:])
+
+
+@pytest.mark.parametrize(
+    ("shape", "washout"), [((6, 2, 3), 6), ((6, 2, 3), -1), ((2, 3), 1)]
+)
+def test_rejects_a_washout_it_cannot_apply(shape, washout):
+    with pytest.raises(ValueError, match="washout"):
+        evaluate(
+            nn.Identity(),
+            [(torch.randn(shape), torch.randn(shape))],
+            torch.equal,
+            washout,
+        )

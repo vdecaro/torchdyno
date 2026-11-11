@@ -35,5 +35,5 @@ IntrinsicPlasticity(lr=0.5, mu=0.0, sigma=0.2, epochs=10).fit(
 
 for name, model in [("without", esn), ("with", adapted)]:
     Ridge(l2=1e-6, washout=100).fit(model, data.train_loader)
-    nrmse = evaluate(model, data.eval_loader, data.task.primary)
-    print(f"{name} intrinsic plasticity: test NRMSE {nrmse:.4f}")
+    nrmse = evaluate(model, data.eval_loader, data.task.primary, washout=100)
+    print(f"{name} intrinsic plasticity: test NRMSE {nrmse:.2e}")

@@ -34,4 +34,6 @@ deep = nn.Sequential(
     nn.Linear(600, 3),
 )
 Ridge(l2=1e-6, washout=100).fit(deep, data.train_loader)
-print(f"deep ESN test NRMSE: {evaluate(deep, data.eval_loader, data.task.primary):.4f}")
+print(
+    f"deep ESN test NRMSE: {evaluate(deep, data.eval_loader, data.task.primary, washout=100):.2e}"
+)

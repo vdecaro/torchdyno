@@ -64,10 +64,38 @@ def restore_modes(model: nn.Module) -> Iterator[None]:
             module.training = training
 
 
+def drop_washout(out: Tensor, y: Tensor, washout: int) -> tuple[Tensor, Tensor]:
+    """Drop the first ``washout`` timesteps of time-aligned outputs and targets.
+
+    Args:
+        out: ``(T, B, ·)`` time-aligned or ``(B, ·)`` pooled outputs.
+        y: the targets, aligned with ``out``.
+        washout: leading timesteps to drop.
+
+    Returns:
+        ``out`` and ``y`` from timestep ``washout`` on; pooled ones unchanged.
+
+    Raises:
+        ValueError: if ``washout`` is set for pooled outputs, or leaves no
+            timestep.
+    """
+    if out.ndim != 3:  # noqa: PLR2004 pooled (B, ·)
+        if washout:
+            raise ValueError("washout needs time-aligned (T, B, ·) outputs.")
+        return out, y
+    if not 0 <= washout < out.shape[0]:
+        raise ValueError(
+            f"washout must be in [0, {out.shape[0]}) for {out.shape[0]} timesteps, "
+            f"got {washout}."
+        )
+    return out[washout:], y[washout:]
+
+
 def evaluate(
     model: nn.Module,
     loader: Iterable[tuple[Tensor, Tensor]],
     score_fn: Callable[[Tensor, Tensor], Score],
+    washout: int = 0,
 ) -> Score:
     """Score a model over a whole loader at once.
 
@@ -75,6 +103,8 @@ def evaluate(
         model: the model to score.
         loader: batches of time-first ``(x, y)``.
         score_fn: ``score_fn(prediction, target)``, returning any score.
+        washout: leading timesteps of time-aligned predictions left unscored,
+            as for the learners that fit after a washout.
 
     Returns:
         The score of the predictions for every batch, concatenated.
@@ -83,8 +113,9 @@ def evaluate(
     with torch.no_grad(), restore_modes(model):
         model.eval()
         for x, y in loader:
-            preds.append(model(x))
-            targets.append(y)
+            pred, target = drop_washout(model(x), y, washout)
+            preds.append(pred)
+            targets.append(target)
     # time-first (T, B, O) predictions batch on dim 1; pooled (B, C) on dim 0
     dim = 1 if preds[0].ndim == 3 else 0  # noqa: PLR2004
     return score_fn(torch.cat(preds, dim=dim), torch.cat(targets, dim=dim))
@@ -112,19 +143,16 @@ def feature_rows(
 
     Raises:
         TypeError: if the last module is not an ``nn.Linear``.
-        ValueError: if ``washout`` is set for pooled features, a feature is not
-            finite, or the targets don't match the features and the readout's
-            outputs.
+        ValueError: if ``washout`` is set for pooled features or leaves no
+            timestep, a feature is not finite, or the targets don't match the
+            features and the readout's outputs.
     """
     readout = model[-1]
     if not isinstance(readout, nn.Linear):
         raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
     with restore_modes(model):
         features = model[:-1].eval()(x)
-    if features.ndim == 3:  # noqa: PLR2004 (T, B, H): fit every timestep
-        features, y = features[washout:], y[washout:]
-    elif washout:
-        raise ValueError("washout needs time-aligned (T, B, H) features.")
+    features, y = drop_washout(features, y, washout)
     if not features.isfinite().all():
         rows = int((~features.isfinite()).any(-1).sum())
         raise ValueError(
