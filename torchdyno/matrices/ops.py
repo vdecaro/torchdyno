@@ -56,6 +56,21 @@ def to_dense(matrix: nn.Module) -> Tensor:
 
 
 @torch.no_grad()
+def spectral_radius(matrix: nn.Module) -> float:
+    """The largest absolute eigenvalue of a square matrix's ``W``.
+
+    Args:
+        matrix: a matrix of this module, or an ``nn.Linear``.
+
+    Returns:
+        The spectral radius, computed in double precision.
+    """
+    w = to_dense(matrix)
+    w = w.to(torch.complex128 if w.is_complex() else torch.float64)
+    return torch.linalg.eigvals(w).abs().max().item()
+
+
+@torch.no_grad()
 def update_(matrix: nn.Module, delta: Tensor) -> None:
     """Add ``delta`` to ``W`` as far as the matrix's structure allows, in place.
 

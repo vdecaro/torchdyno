@@ -24,36 +24,68 @@ def _real(tensor: Tensor) -> Tensor:
     return torch.view_as_real(tensor) if tensor.is_complex() else tensor
 
 
-def uniform(scale: float) -> Init:
+def uniform(scale: float | Tensor) -> Init:
     """Initialise from ``U(-scale, scale)``; complex parts are drawn independently.
 
     Args:
-        scale: the half-width of the interval.
+        scale: the half-width of the interval, or a tensor of them that
+            broadcasts to the matrix, e.g. one per input column to scale each
+            input channel.
 
     Returns:
         An in-place initialiser.
     """
 
     def init(tensor: Tensor) -> Tensor:
+        if isinstance(scale, torch.Tensor):
+            nn.init.uniform_(_real(tensor), -1.0, 1.0)
+            return tensor.mul_(scale.to(tensor.device))
         nn.init.uniform_(_real(tensor), -scale, scale)
         return tensor
 
     return init
 
 
-def normal(std: float) -> Init:
+def normal(std: float | Tensor) -> Init:
     """Initialise from ``N(0, std²)``; complex parts are drawn independently.
 
     Args:
-        std: the standard deviation of each part.
+        std: the standard deviation of each part, or a tensor of them that
+            broadcasts to the matrix, e.g. one per input column.
 
     Returns:
         An in-place initialiser.
     """
 
     def init(tensor: Tensor) -> Tensor:
+        if isinstance(std, torch.Tensor):
+            nn.init.normal_(_real(tensor))
+            return tensor.mul_(std.to(tensor.device))
         nn.init.normal_(_real(tensor), 0.0, std)
         return tensor
+
+    return init
+
+
+def cycle(weight: float) -> Init:
+    """Initialise a square matrix as a ring: unit ``i`` feeds unit ``i + 1 mod n``.
+
+    The simple cycle reservoir of Rodan and Tino, "Minimum complexity echo state
+    network" (2011): every connection has the same ``weight``, which is also
+    the spectral radius.
+
+    Args:
+        weight: the weight of every connection in the ring.
+
+    Returns:
+        An in-place initialiser.
+    """
+
+    def init(tensor: Tensor) -> Tensor:
+        with torch.no_grad():
+            tensor.zero_()
+            ring = torch.arange(tensor.shape[0], device=tensor.device)
+            return tensor.index_put_((ring.roll(-1), ring), tensor.new_tensor(weight))
 
     return init
 

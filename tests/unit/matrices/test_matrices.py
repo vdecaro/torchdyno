@@ -9,8 +9,10 @@ from torchdyno.matrices import (
     Dense,
     Diagonal,
     SkewCoupling,
+    cycle,
     normal,
     spectral,
+    spectral_radius,
     to_dense,
     uniform,
     update_,
@@ -54,8 +56,29 @@ def test_initialisers():
     assert Dense(200, 200, init=normal(0.5)).weight.std().item() == pytest.approx(
         0.5, rel=0.02
     )
-    rescaled = Dense(30, 30, init=spectral(uniform(1.0), 0.9)).weight
-    assert torch.linalg.eigvals(rescaled).abs().max().item() == pytest.approx(0.9)
+    rescaled = Dense(30, 30, init=spectral(uniform(1.0), 0.9))
+    assert spectral_radius(rescaled) == pytest.approx(0.9)
+
+
+def test_initialisers_take_a_scale_per_input_channel():
+    torch.manual_seed(0)
+    scale = torch.tensor([0.1, 1.0, 10.0])
+    for init in (uniform(scale), normal(scale)):
+        w = Dense(3, 400, init=init).weight
+        ratios = w.abs().mean(0) / w.abs().mean(0)[1]
+        torch.testing.assert_close(ratios, scale, rtol=0.15, atol=0)
+    w = Dense(3, 400, init=uniform(scale), dtype=torch.cfloat).dense()
+    assert (w.real.abs().amax(0) <= scale).all() and (
+        w.imag.abs().amax(0) <= scale
+    ).all()
+
+
+def test_cycle_is_a_ring_with_its_weight_as_spectral_radius():
+    ring = Dense(5, 5, init=cycle(0.7))
+    expected = 0.7 * torch.eye(5).roll(1, dims=0)
+    torch.testing.assert_close(ring.weight.detach(), expected)
+    assert spectral_radius(ring) == pytest.approx(0.7)
+    assert spectral_radius(nn.Linear(4, 4)) > 0
 
 
 def test_diagonal_applies_its_bound():

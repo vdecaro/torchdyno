@@ -18,12 +18,14 @@ from .blocks import (
 from .dense import Dense
 from .diagonal import Diagonal
 from .init import (
+    cycle,
     normal,
     spectral,
     uniform,
 )
 from .ops import (
     LinearMap,
+    spectral_radius,
     to_dense,
     update_,
 )
@@ -34,8 +36,10 @@ __all__ = [
     "Diagonal",
     "LinearMap",
     "SkewCoupling",
+    "cycle",
     "normal",
     "spectral",
+    "spectral_radius",
     "to_dense",
     "uniform",
     "update_",
