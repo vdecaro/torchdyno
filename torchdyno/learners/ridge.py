@@ -90,7 +90,7 @@ class Ridge:
 
     def fit(
         self,
-        model: nn.Sequential,
+        model: nn.Module,
         train: Iterable[tuple[Tensor, Tensor]],
         val: Iterable[tuple[Tensor, Tensor]] | None = None,
     ) -> FitResult:
@@ -106,7 +106,8 @@ class Ridge:
             val: batches used to select among several ``l2`` values.
 
         Returns:
-            The chosen ``l2`` (and its score when selecting) and the RNG state.
+            The chosen ``l2`` (and its score when selecting), the score of every
+            candidate in ``history`` when selecting, and the RNG state.
 
         Raises:
             TypeError: if the readout is not a real ``nn.Linear`` or ``Dense``.
@@ -124,6 +125,7 @@ class Ridge:
             )
 
         solve = self._solver(model, readout, train)
+        history: dict[str, list[float]] = {}
         if len(candidates) == 1:
             best: dict[str, float] = {"l2": candidates[0]}
         else:
@@ -135,8 +137,9 @@ class Ridge:
             pick = max if self.mode == "max" else min
             chosen = pick(scores, key=scores.__getitem__)
             best = {"l2": chosen, "score": scores[chosen]}
+            history = {"l2": list(scores), "val_score": list(scores.values())}
         _set(readout, *solve(best["l2"]))
-        return FitResult(best=best, rng=rng)
+        return FitResult(history=history, best=best, rng=rng)
 
     def _solver(
         self,

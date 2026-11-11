@@ -56,7 +56,7 @@ class RLS:
 
     def fit(
         self,
-        model: nn.Sequential,
+        model: nn.Module,
         train: Iterable[tuple[Tensor, Tensor]],
         val: Iterable[tuple[Tensor, Tensor]] | None = None,  # noqa: ARG002
     ) -> FitResult:

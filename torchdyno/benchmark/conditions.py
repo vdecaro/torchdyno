@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from torchdyno.benchmark.runner import BenchmarkResult
     from torchdyno.benchmark.spec import BenchmarkSpec
+    from torchdyno.learners import Learner
     from torchdyno.tasks import Task
 
 CONDITIONS = ("readout", "frozen", "trained")
@@ -65,8 +66,8 @@ def run_conditions(
     width = next(iter(spec.dataset.train_loader))[0].shape[-1]
     washout = spec.dataset.washout
 
-    def build(condition: str) -> Callable[[Task], tuple[nn.Module, Any]]:
-        def _build(task: Task) -> tuple[nn.Module, Any]:
+    def build(condition: str) -> Callable[[Task], tuple[nn.Module, Learner]]:
+        def _build(task: Task) -> tuple[nn.Module, Learner]:
             model = make_model()
             if condition != "trained":
                 model[:-1].requires_grad_(False)

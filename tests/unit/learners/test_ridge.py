@@ -207,6 +207,8 @@ def test_selects_l2_on_validation():
     )
     assert result.best["l2"] == 1e-6
     assert result.best["score"] == pytest.approx(mse(model(x[30:]), y[30:]))
+    assert result.history["l2"] == [1e-6, 1e2, 1e4]
+    assert min(result.history["val_score"]) == result.best["score"]
 
 
 def test_scores_validation_after_the_washout():

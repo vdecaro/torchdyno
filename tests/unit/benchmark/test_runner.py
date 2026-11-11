@@ -113,3 +113,10 @@ def test_a_seed_gives_the_same_result_alone_or_in_a_sweep():
 
     alone = run(BenchmarkSpec(data, seeds=[1]), build).per_seed
     assert run(BenchmarkSpec(data, seeds=[0, 1]), build).per_seed[1:] == alone
+
+
+def test_keeps_what_every_fit_returned():
+    result = run(BenchmarkSpec(_dataset(), seeds=[0, 1]), _build)
+    assert len(result.fits) == 2
+    assert all(set(fit.history) == {"l2", "val_score"} for fit in result.fits)
+    assert all(fit.best["l2"] in (1e-6, 1e-2) for fit in result.fits)

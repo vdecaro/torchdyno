@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
-from typing import (
-    TYPE_CHECKING,
-    Any,
+from dataclasses import (
+    dataclass,
+    field,
 )
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -20,6 +20,10 @@ if TYPE_CHECKING:
     from torch import nn
 
     from torchdyno.benchmark.spec import BenchmarkSpec
+    from torchdyno.learners import (
+        FitResult,
+        Learner,
+    )
     from torchdyno.tasks import Task
 
 
@@ -33,6 +37,8 @@ class BenchmarkResult:
         per_seed: the metrics of each seed, in seed order.
         seeds: the seeds run.
         wall_time_s: total fit wall time across seeds.
+        fits: what each seed's fit returned, in seed order: histories, selected
+            hyperparameters and RNG states.
     """
 
     dataset: str
@@ -40,6 +46,7 @@ class BenchmarkResult:
     per_seed: list[dict[str, float]]
     seeds: list[int]
     wall_time_s: float
+    fits: list[FitResult] = field(default_factory=list)
 
 
 def _mean_std(values: list[float]) -> tuple[float, float]:
@@ -50,7 +57,7 @@ def _mean_std(values: list[float]) -> tuple[float, float]:
 
 def run(
     spec: BenchmarkSpec,
-    build: Callable[[Task], tuple[nn.Module, Any]],
+    build: Callable[[Task], tuple[nn.Module, Learner]],
 ) -> BenchmarkResult:
     """Fit and evaluate a fresh model for every seed of ``spec``.
 
@@ -78,12 +85,13 @@ def run(
     found = (getattr(loader, "generator", None) for loader in loaders)
     generators = [g for g in found if isinstance(g, torch.Generator)]
     per_seed: list[dict[str, float]] = []
+    fits: list[FitResult] = []
     wall_time = 0.0
     for seed in spec.seeds:
         seed_all(seed, *generators)
         model, learner = build(data.task)
         start = time.perf_counter()
-        learner.fit(model, data.train_loader, data.val_loader)
+        fits.append(learner.fit(model, data.train_loader, data.val_loader))
         wall_time += time.perf_counter() - start
         per_seed.append(
             evaluate(model, data.eval_loader, data.task.metrics, data.washout)
@@ -96,4 +104,5 @@ def run(
         per_seed=per_seed,
         seeds=list(spec.seeds),
         wall_time_s=wall_time,
+        fits=fits,
     )
