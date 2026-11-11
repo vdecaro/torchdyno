@@ -23,5 +23,5 @@ rocket = nn.Sequential(
     nn.Linear(20_000, 3),
 )
 l2 = torch.logspace(-3, 3, 10).tolist()
-Ridge(l2, standardize=True, score_fn=Accuracy(), mode="max").fit(rocket, train, val)
+Ridge(l2, standardize=True, score_fn=Accuracy()).fit(rocket, train, val)
 print(f"ROCKET test accuracy: {evaluate(rocket, test, Accuracy()):.4f}")

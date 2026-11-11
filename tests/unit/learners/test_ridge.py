@@ -7,6 +7,7 @@ from torchdyno.learners import (
     RLS,
     Ridge,
 )
+from torchdyno.metrics import Accuracy
 from torchdyno.pooling import (
     Last,
     Mean,
@@ -181,6 +182,15 @@ def test_takes_candidates_as_any_sequence_or_tensor(l2):
 def test_rejects_penalties_and_modes_it_cannot_use(kwargs, match):
     with pytest.raises(ValueError, match=match):
         Ridge(**kwargs)
+
+
+def test_selects_in_the_direction_of_the_metric():
+    torch.manual_seed(0)
+    x = torch.randn(60, 4, dtype=DTYPE)
+    y = (x[:, 0] > 0).long()
+    model = _model(4, 2, bias=True)
+    result = Ridge([1e-3, 1e6], score_fn=Accuracy()).fit(model, [(x, y)], [(x, y)])
+    assert result.best == {"l2": 1e-3, "score": Accuracy()(model(x), y)}
 
 
 def test_needs_a_linear_readout_and_validation_to_select():

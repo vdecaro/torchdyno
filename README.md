@@ -81,7 +81,6 @@ Ridge(
     torch.logspace(-3, 3, 10).tolist(),
     standardize=True,
     score_fn=Accuracy(),
-    mode="max",
 ).fit(rocket, train, val)
 ```
 

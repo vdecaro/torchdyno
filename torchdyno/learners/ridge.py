@@ -48,7 +48,7 @@ class Ridge:
 
         Args:
             l2: the L2 penalty, or candidates to select among on ``val``
-                (requires ``score_fn`` and ``mode``): a sequence or a tensor.
+                (requires ``score_fn``): a sequence or a tensor.
             washout: leading timesteps to discard, when fitting and when
                 scoring ``val``; only for time-aligned features.
             standardize: scale every feature to unit variance before solving,
@@ -56,7 +56,8 @@ class Ridge:
             score_fn: ``score_fn(prediction, target) -> float`` ranking the L2
                 candidates.
             mode: ``"min"`` or ``"max"``: whether the best score is smallest or
-                largest.
+                largest; ``None`` takes ``score_fn.mode``, as a
+                :class:`~torchdyno.metrics.Metric` has.
 
         Raises:
             ValueError: if there is no ``l2`` value, one is negative, or ``mode``
@@ -69,6 +70,7 @@ class Ridge:
             raise ValueError(f"l2 needs at least one value, all >= 0, got {l2}.")
         if mode not in {"min", "max", None}:
             raise ValueError(f"mode must be 'min' or 'max', got {mode!r}.")
+        mode = mode or getattr(score_fn, "mode", None)
         self.washout = washout
         self.standardize = standardize
         self.score_fn = score_fn
@@ -97,7 +99,7 @@ class Ridge:
         Raises:
             TypeError: if the last module is not an ``nn.Linear``.
             ValueError: if several ``l2`` values are given without ``val``,
-                ``score_fn`` and ``mode``.
+                ``score_fn`` and a ``mode``.
         """
         readout = model[-1]
         if not isinstance(readout, nn.Linear):

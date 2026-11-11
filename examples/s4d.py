@@ -32,5 +32,5 @@ s4d = nn.Sequential(
     nn.Linear(4 * N, 3),
 )
 l2 = torch.logspace(-4, 2, 7).tolist()
-Ridge(l2, standardize=True, score_fn=Accuracy(), mode="max").fit(s4d, train, val)
+Ridge(l2, standardize=True, score_fn=Accuracy()).fit(s4d, train, val)
 print(f"S4D test accuracy: {evaluate(s4d, test, Accuracy()):.4f}")

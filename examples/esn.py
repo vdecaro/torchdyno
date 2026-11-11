@@ -30,7 +30,7 @@ esn = nn.Sequential(
 )
 
 l2 = torch.logspace(-8, -2, 4).tolist()
-Ridge(l2, washout=data.washout, score_fn=data.task.primary, mode="min").fit(
+Ridge(l2, washout=data.washout, score_fn=data.task.primary).fit(
     esn, data.train_loader, data.val_loader
 )
 print(

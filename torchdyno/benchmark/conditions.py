@@ -71,9 +71,7 @@ def run_conditions(
             if condition != "trained":
                 model[:-1].requires_grad_(False)
             if condition == "readout":
-                return model, Ridge(
-                    l2, washout, score_fn=task.primary, mode=task.primary.mode
-                )
+                return model, Ridge(l2, washout, score_fn=task.primary)
             if condition == "frozen":
                 model = nn.Sequential(nn.Linear(width, width), *model)
             return model, Backprop(
