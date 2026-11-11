@@ -142,12 +142,12 @@ class LinearDiagonalCell(Cell):
     time.
     """
 
-    def __init__(self, transition: nn.Module, input: LinearMap):
+    def __init__(self, input: LinearMap, transition: nn.Module):
         """Initializes the cell.
 
         Args:
-            transition: a module whose ``forward(u)`` returns ``(a, s)``.
             input: the input matrix ``B``.
+            transition: a module whose ``forward(u)`` returns ``(a, s)``.
 
         Raises:
             ValueError: if the transition has another number of modes than the
@@ -180,25 +180,25 @@ class LinearDiagonalCell(Cell):
         a, s = self.transition(u)
         return a, s * self.input(u)
 
-    def unpack(self, state: Tensor) -> Tensor:
-        """The state ``h`` from its stored form."""
+    def unpack(self, h: Tensor) -> Tensor:
+        """The state from its stored form, complex if the cell is."""
         if not self.is_complex:
-            return state
-        return torch.complex(state[..., : self.modes], state[..., self.modes :])
+            return h
+        return torch.complex(h[..., : self.modes], h[..., self.modes :])
 
     def pack(self, h: Tensor) -> Tensor:
-        """The stored form of the state ``h``."""
+        """The stored, real form of a state."""
         return torch.cat([h.real, h.imag], dim=-1) if self.is_complex else h
 
-    def forward(self, u: Tensor, state: Tensor) -> Tensor:
+    def forward(self, u: Tensor, h: Tensor) -> Tensor:
         """Advance the state by one timestep.
 
         Args:
             u: the input, shape ``(B, F)``.
-            state: the stored state, shape ``(B, state_size)``.
+            h: the stored state, shape ``(B, state_size)``.
 
         Returns:
             The new state, in the same layout.
         """
         a, b = self.coefficients(u)
-        return self.pack(a * self.unpack(state) + b)
+        return self.pack(a * self.unpack(h) + b)

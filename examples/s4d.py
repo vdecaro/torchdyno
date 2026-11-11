@@ -23,8 +23,8 @@ N = 128
 s4d = nn.Sequential(
     Scan(
         LinearDiagonalCell(
-            transition=ZOHDiagonal(N, dt_min=1e-2, dt_max=1.0),
             input=Dense(1, N, init=normal(1.0), dtype=torch.cfloat),
+            transition=ZOHDiagonal(N, dt_min=1e-2, dt_max=1.0),
         )
     ).requires_grad_(False),
     Concat(PPV(), Max()),

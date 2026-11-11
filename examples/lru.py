@@ -24,8 +24,8 @@ N = 64
 lru = nn.Sequential(
     Scan(
         LinearDiagonalCell(
-            transition=RingDiagonal(N, r_min=0.4, r_max=0.99, max_phase=math.pi),
             input=Dense(1, N, init=normal(1.0), dtype=torch.cfloat),
+            transition=RingDiagonal(N, r_min=0.4, r_max=0.99, max_phase=math.pi),
         )
     ),
     nn.Linear(2 * N, 64),

@@ -141,6 +141,6 @@ class Selective(nn.Module):
 @pytest.mark.parametrize("layer", [Recurrent, Scan])
 def test_real_and_input_dependent_transitions_run_in_both_layers(make, layer):
     torch.manual_seed(0)
-    cell = LinearDiagonalCell(make(), Dense(2, 5, dtype=DTYPE))
+    cell = LinearDiagonalCell(Dense(2, 5, dtype=DTYPE), make())
     assert cell.state_size == 5
     assert_layer_conforms(layer(cell), torch.randn(9, 3, 2, dtype=DTYPE))

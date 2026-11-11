@@ -225,7 +225,7 @@ MISMATCHED = {
     "oscillator input": lambda: OscillatorCell(Dense(2, 3), Dense(8, 4)),
     "closed form heads": lambda: ClosedFormCell(nn.Identity(), Dense(6, 6)),
     "linear diagonal": lambda: LinearDiagonalCell(
-        RingDiagonal(3), Dense(2, 4, dtype=torch.cfloat)
+        Dense(2, 4, dtype=torch.cfloat), RingDiagonal(3)
     ),
 }
 

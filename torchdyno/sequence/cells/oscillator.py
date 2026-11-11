@@ -76,20 +76,20 @@ class OscillatorCell(Cell):
         self.positions = recurrent.out_features
         self.state_size = 2 * self.positions
 
-    def forward(self, u: Tensor, state: Tensor) -> Tensor:
+    def forward(self, u: Tensor, h: Tensor) -> Tensor:
         """Advance the state by one timestep.
 
         Args:
             u: the input, shape ``(B, F)``.
-            state: ``[y; z]``, shape ``(B, state_size)``.
+            h: ``[y; z]``, shape ``(B, state_size)``.
 
         Returns:
             The new state, in the same layout.
         """
-        y, z = state[..., : self.positions], state[..., self.positions :]
+        y, z = h[..., : self.positions], h[..., self.positions :]
         dt, gamma, epsilon = (
-            _at(value, u, state) for value in (self.dt, self.gamma, self.epsilon)
+            _at(value, u, h) for value in (self.dt, self.gamma, self.epsilon)
         )
-        drive = self.activation(self.recurrent(state) + self.input(u))
+        drive = self.activation(self.recurrent(h) + self.input(u))
         z = z + dt * (drive - gamma * y - epsilon * z)
         return torch.cat([y + dt * z, z], dim=-1)

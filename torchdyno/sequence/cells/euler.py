@@ -73,7 +73,7 @@ class Gate(nn.Module):
 
 
 class LeakyField(nn.Module):
-    """A leaky ODE's vector field: ``f(u, v) = -v + W φ(v) + L v + B u``.
+    """A leaky ODE's vector field: ``f(u, h) = -h + W φ(h) + L h + B u``.
 
     With a block-diagonal ``W`` and a skew-symmetric ``L``, an assembly of
     coupled modules; integrate it with :class:`EulerCell`.
@@ -90,8 +90,8 @@ class LeakyField(nn.Module):
 
         Args:
             input: the input matrix ``B``.
-            recurrent: the matrix ``W`` applied to ``φ(v)``.
-            coupling: an optional matrix ``L`` applied to ``v``.
+            recurrent: the matrix ``W`` applied to ``φ(h)``.
+            coupling: an optional matrix ``L`` applied to ``h``.
             activation: the activation ``φ``.
 
         Raises:
@@ -110,19 +110,19 @@ class LeakyField(nn.Module):
         self.activation = activation
         self.state_size = size
 
-    def forward(self, u: Tensor, v: Tensor) -> Tensor:
+    def forward(self, u: Tensor, h: Tensor) -> Tensor:
         """The time derivative of the state.
 
         Args:
             u: the input, shape ``(B, F)``.
-            v: the state, shape ``(B, state_size)``.
+            h: the state, shape ``(B, state_size)``.
 
         Returns:
-            ``f(u, v)``, shape ``(B, state_size)``.
+            ``f(u, h)``, shape ``(B, state_size)``.
         """
-        drive = -v + self.recurrent(self.activation(v))
+        drive = -h + self.recurrent(self.activation(h))
         if self.coupling is not None:
-            drive = drive + self.coupling(v)
+            drive = drive + self.coupling(h)
         return drive + self.input(u)
 
 
