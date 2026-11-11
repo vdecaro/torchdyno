@@ -1,3 +1,4 @@
+import pytest
 import torch
 from torch import nn
 
@@ -77,3 +78,14 @@ def test_table_has_a_row_per_condition():
         f"| {c}" for c in CONDITIONS
     ]
     assert " ± " in table[2]
+
+
+def test_passes_ridge_options_to_the_readout_condition():
+    def conditions(ridge):
+        return run_conditions(
+            _spec(), _make_model, l2=1e-4, lr=1e-2, epochs=1, ridge=ridge
+        )
+
+    assert set(conditions({"standardize": True})) == set(CONDITIONS)
+    with pytest.raises(TypeError, match="unexpected keyword"):
+        conditions({"standardise": True})

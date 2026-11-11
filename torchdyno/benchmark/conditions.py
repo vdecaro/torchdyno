@@ -25,7 +25,10 @@ from torchdyno.learners import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import (
+        Callable,
+        Mapping,
+    )
 
     from torch.optim import Optimizer
 
@@ -45,8 +48,13 @@ def run_conditions(
     lr: float,
     epochs: int,
     scheduler: Callable[[Optimizer], Any] | None = None,
+    ridge: Mapping[str, Any] | None = None,
 ) -> dict[str, BenchmarkResult]:
     """Benchmark ``make_model`` under each condition on the same seeds.
+
+    Any other condition is a :func:`~torchdyno.benchmark.run` of its own build,
+    added to the result for :func:`conditions_table`, e.g.
+    ``results["plasticity"] = run(spec, build)``.
 
     Args:
         spec: the dataset and seeds.
@@ -56,6 +64,8 @@ def run_conditions(
         epochs: the epochs for both backprop conditions.
         scheduler: optional ``optimizer -> LRScheduler`` for both backprop
             conditions.
+        ridge: more arguments for :class:`~torchdyno.learners.Ridge` in the
+            readout condition, e.g. ``{"standardize": True}``.
 
     Every condition fits and scores after the dataset's washout.
 
@@ -72,7 +82,7 @@ def run_conditions(
             if condition != "trained":
                 model[:-1].requires_grad_(False)
             if condition == "readout":
-                return model, Ridge(l2, washout, score_fn=task.primary)
+                return model, Ridge(l2, washout, score_fn=task.primary, **(ridge or {}))
             if condition == "frozen":
                 model = nn.Sequential(nn.Linear(width, width), *model)
             return model, Backprop(
