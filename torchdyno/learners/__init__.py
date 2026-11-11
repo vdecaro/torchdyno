@@ -8,6 +8,7 @@ from .protocol import (
     FitResult,
     Learner,
 )
+from .quantile_bias import QuantileBias
 from .ridge import Ridge
 from .rls import RLS
 from .scoring import evaluate
@@ -20,6 +21,7 @@ __all__ = [
     "FitResult",
     "IntrinsicPlasticity",
     "Learner",
+    "QuantileBias",
     "Ridge",
     "evaluate",
 ]

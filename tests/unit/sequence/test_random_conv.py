@@ -13,6 +13,7 @@ from torchdyno.sequence import (
     Concat,
     Kernels,
     RandomConv,
+    minirocket,
     rocket,
 )
 
@@ -150,3 +151,32 @@ def test_rejects_a_draw_of_another_shape():
 
     with pytest.raises(ValueError, match="kernels by channels"):
         RandomConv(1, length=20, kernels=4, draw=wrong)
+
+
+def test_minirocket_draws_84_patterns_at_the_reference_dilations():
+    torch.manual_seed(0)
+    conv = RandomConv(3, length=60, kernels=84 * 119, draw=minirocket)
+    weights = conv.weight[conv.weight.abs().sum(-1) > 0]  # the channels in use
+    assert ((weights == 2).sum(-1) == 3).all() and ((weights == -1).sum(-1) == 6).all()
+    dilations, counts = conv.dilations.unique(return_counts=True)
+    assert dilations.tolist() == list(range(1, 8))
+    # numpy's logspace and int32 counts in the reference fit_dilations
+    assert (counts // 84).tolist() == [41, 27, 15, 11, 11, 11, 3]
+    first = torch.cat([torch.tensor([0]), counts.cumsum(0)[:-1]])
+    for i, (start, count) in enumerate(
+        zip(first.tolist(), (counts // 84).tolist(), strict=True)
+    ):
+        padded = conv.paddings[start : start + 84 * count : count] > 0
+        assert padded.tolist() == [(i + j) % 2 == 0 for j in range(84)]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"length": 8, "kernels": 84}, "at least 9"),
+        ({"length": 20, "kernels": 100}, "84"),
+    ],
+)
+def test_minirocket_rejects_sizes_it_cannot_draw_for(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        RandomConv(1, draw=minirocket, **kwargs)

@@ -27,6 +27,7 @@ from .combine import (
 from .convolution import (
     Kernels,
     RandomConv,
+    minirocket,
     rocket,
 )
 from .recurrent import (
@@ -59,5 +60,6 @@ __all__ = [
     "Stack",
     "Sum",
     "ZOHDiagonal",
+    "minirocket",
     "rocket",
 ]

@@ -1,7 +1,8 @@
-"""Fixed random convolution kernels (ROCKET)."""
+"""Fixed random convolution kernels (ROCKET, MiniRocket)."""
 
 from __future__ import annotations
 
+import itertools
 import math
 from typing import (
     TYPE_CHECKING,
@@ -89,6 +90,71 @@ def rocket(
             paddings[k] = (size - 1) * int(dilations[k]) // 2
     bias = torch.empty(kernels, dtype=dtype).uniform_(-1, 1)
     return Kernels(weight, bias, lengths, dilations, paddings)
+
+
+def minirocket(
+    channels: int, length: int, kernels: int, dtype: torch.dtype | None = None
+) -> Kernels:
+    """Draw MiniRocket's kernels: 84 fixed patterns at spread dilations.
+
+    From Dempster, Schmidt and Webb, "MiniRocket: a very fast (almost)
+    deterministic transform for time series classification" (2021). Each of the
+    84 length-9 patterns has weight 2 at three taps and -1 at the other six, on
+    a random subset of channels. Dilations are ``2 ** linspace(0, log2((length
+    - 1) / 8))``, up to 32 of them; each (dilation, pattern) pair is repeated
+    for as many kernels as its share of ``kernels``, and is padded for every
+    other pair. Rows run over dilations, then patterns, then repeats. Biases are
+    zero: fit them with :class:`~torchdyno.learners.QuantileBias`, and pool with
+    :class:`~torchdyno.readout.PPV`.
+
+    Args:
+        channels: the number of input channels.
+        length: the series length the kernels are drawn for.
+        kernels: the number of kernels, a multiple of 84, e.g. 9,996.
+        dtype: the data type of the weights and biases; ``None`` takes
+            torch's default.
+
+    Returns:
+        The kernels.
+
+    Raises:
+        ValueError: if ``length`` is shorter than 9 or ``kernels`` is not a
+            multiple of 84.
+    """
+    dtype = dtype or torch.get_default_dtype()
+    patterns = list(itertools.combinations(range(9), 3))
+    if length < 9:  # noqa: PLR2004
+        raise ValueError(f"length must be at least 9, the kernel length: {length}")
+    if kernels % len(patterns):
+        raise ValueError(f"MiniRocket needs a multiple of 84 kernels, got {kernels}.")
+    repeats = kernels // len(patterns)
+    steps = min(repeats, 32)
+    spread = torch.linspace(0, math.log2((length - 1) / 8), steps, dtype=torch.float64)
+    dilations, counts = torch.unique((2**spread).long(), return_counts=True)
+    counts = (counts * repeats / steps).long()
+    counts[: repeats - int(counts.sum())] += 1
+    rows: list[tuple[list[int], int, int, int]] = []
+    for i, (dilation, count) in enumerate(
+        zip(dilations.tolist(), counts.tolist(), strict=True)
+    ):
+        for j in range(len(patterns)):
+            used = int(2 ** (torch.rand(()).item() * math.log2(min(channels, 9) + 1)))
+            subset = torch.randperm(channels)[:used].tolist()
+            padding = 4 * dilation if (i + j) % 2 == 0 else 0
+            rows += [(subset, j, dilation, padding)] * count
+    taps = torch.full((len(patterns), 9), -1.0, dtype=dtype)
+    for j, pattern in enumerate(patterns):
+        taps[j, list(pattern)] = 2.0
+    weight = torch.zeros(kernels, channels, 9, dtype=dtype)
+    for k, (subset, j, _, _) in enumerate(rows):
+        weight[k, subset] = taps[j]
+    return Kernels(
+        weight,
+        torch.zeros(kernels, dtype=dtype),
+        torch.full((kernels,), 9),
+        torch.tensor([row[2] for row in rows]),
+        torch.tensor([row[3] for row in rows]),
+    )
 
 
 class RandomConv(nn.Module):

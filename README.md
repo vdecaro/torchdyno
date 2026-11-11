@@ -87,7 +87,7 @@ Ridge(
 ).fit(rocket, train, val)
 ```
 
-[`examples/`](examples) composes echo state networks, AdaDiag, SCN, coRNN, CfC, LRU, S4D and ROCKET, and a reservoir trained by FORCE to generate a wave. Run one from the repository root with `python -m examples.<name>`, e.g. `python -m examples.esn`.
+[`examples/`](examples) composes echo state networks, AdaDiag, SCN, coRNN, CfC, LRU, S4D, ROCKET and MiniRocket, and a reservoir trained by FORCE to generate a wave. Run one from the repository root with `python -m examples.<name>`, e.g. `python -m examples.esn`.
 
 ## Documentation
 
