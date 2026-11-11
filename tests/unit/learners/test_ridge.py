@@ -159,6 +159,30 @@ def test_scores_validation_after_the_washout():
     assert result.best["score"] == pytest.approx(mse(model(x)[5:], y[5:]))
 
 
+@pytest.mark.parametrize("l2", [(1e-6, 1e2), torch.tensor([1e-6, 1e2])])
+def test_takes_candidates_as_any_sequence_or_tensor(l2):
+    torch.manual_seed(0)
+    x = torch.randn(40, 2, dtype=DTYPE)
+    y = x @ torch.ones(2, 1, dtype=DTYPE)
+    result = Ridge(
+        l2, score_fn=lambda p, t: (p - t).abs().max().item(), mode="min"
+    ).fit(_model(2, 1, bias=False), [(x, y)], [(x, y)])
+    assert result.best["l2"] == pytest.approx(1e-6)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"l2": []}, "at least one"),
+        ({"l2": -1.0}, ">= 0"),
+        ({"mode": "maximize"}, "mode"),
+    ],
+)
+def test_rejects_penalties_and_modes_it_cannot_use(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        Ridge(**kwargs)
+
+
 def test_needs_a_linear_readout_and_validation_to_select():
     with pytest.raises(TypeError, match=r"nn\.Linear"):
         Ridge().fit(nn.Sequential(nn.Identity(), nn.Identity()), [])

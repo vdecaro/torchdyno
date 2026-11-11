@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import (
         Callable,
         Iterable,
+        Sequence,
     )
 
     from torch import Tensor
@@ -37,7 +38,7 @@ class Ridge:
 
     def __init__(
         self,
-        l2: float | list[float] = 1e-6,
+        l2: float | Sequence[float] | Tensor = 1e-6,
         washout: int = 0,
         standardize: bool = False,
         score_fn: Callable[[Tensor, Tensor], float] | None = None,
@@ -47,7 +48,7 @@ class Ridge:
 
         Args:
             l2: the L2 penalty, or candidates to select among on ``val``
-                (requires ``score_fn`` and ``mode``).
+                (requires ``score_fn`` and ``mode``): a sequence or a tensor.
             washout: leading timesteps to discard, when fitting and when
                 scoring ``val``; only for time-aligned features.
             standardize: scale every feature to unit variance before solving,
@@ -56,8 +57,18 @@ class Ridge:
                 candidates.
             mode: ``"min"`` or ``"max"``: whether the best score is smallest or
                 largest.
+
+        Raises:
+            ValueError: if there is no ``l2`` value, one is negative, or ``mode``
+                is neither ``"min"`` nor ``"max"``.
         """
-        self.l2 = l2
+        self.l2: list[float] = (
+            torch.as_tensor(l2, dtype=torch.float64).flatten().tolist()
+        )
+        if not self.l2 or min(self.l2) < 0:
+            raise ValueError(f"l2 needs at least one value, all >= 0, got {l2}.")
+        if mode not in {"min", "max", None}:
+            raise ValueError(f"mode must be 'min' or 'max', got {mode!r}.")
         self.washout = washout
         self.standardize = standardize
         self.score_fn = score_fn
@@ -92,7 +103,7 @@ class Ridge:
         if not isinstance(readout, nn.Linear):
             raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
         rng = get_rng_state()
-        candidates = self.l2 if isinstance(self.l2, list) else [self.l2]
+        candidates = self.l2
         if len(candidates) > 1 and (
             val is None or self.score_fn is None or not self.mode
         ):
