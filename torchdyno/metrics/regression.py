@@ -36,7 +36,11 @@ class MSE(Metric):
 
 
 class NRMSE(Metric):
-    """Normalized RMSE: ``sqrt(mse / (var(target) + eps))``."""
+    """Normalized RMSE: ``sqrt(mse / (var(target) + eps))``, averaged over outputs.
+
+    The last dimension holds the outputs, each normalised by its own variance;
+    a 1-D target is a single output.
+    """
 
     def __init__(self, eps: float = 1e-8):
         """Initializes the metric.
@@ -54,12 +58,15 @@ class NRMSE(Metric):
             target: the targets, same shape as ``pred``.
 
         Returns:
-            The RMSE divided by the standard deviation of the target.
+            Each output's RMSE divided by its standard deviation, averaged.
 
         Raises:
             ValueError: if the shapes differ.
         """
         require_same_shape(pred, target)
-        mse = torch.mean((pred - target) ** 2)
-        var = torch.var(target, unbiased=False)
-        return torch.sqrt(mse / (var + self.eps)).item()
+        if target.ndim == 1:
+            pred, target = pred[:, None], target[:, None]
+        pred, target = pred.flatten(0, -2), target.flatten(0, -2)
+        mse = torch.mean((pred - target) ** 2, dim=0)
+        var = torch.var(target, dim=0, unbiased=False)
+        return torch.sqrt(mse / (var + self.eps)).mean().item()

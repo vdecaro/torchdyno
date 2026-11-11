@@ -22,6 +22,15 @@ def test_regression_metrics():
     assert NRMSE()(target, target) == 0.0
 
 
+def test_nrmse_normalises_each_output_by_its_own_variance():
+    target = torch.stack([torch.randn(50), 1e-2 * torch.randn(50)], dim=-1)
+    target = target - target.mean(0)
+    pred = target.clone()
+    pred[:, 1] = 0.0  # the small output is entirely wrong
+    assert NRMSE()(pred, target) == pytest.approx(0.5, abs=1e-4)
+    assert NRMSE()(pred[:, None], target[:, None]) == NRMSE()(pred, target)
+
+
 def test_accuracy():
     logits = torch.tensor([[2.0, 0.0], [0.0, 1.0], [3.0, 1.0]])
     assert Accuracy()(logits, torch.tensor([0, 1, 1])) == pytest.approx(2 / 3)
