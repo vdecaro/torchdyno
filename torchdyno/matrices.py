@@ -13,7 +13,6 @@ dimension of 2, so that casts such as ``.double()`` reach both parts.
 
 from __future__ import annotations
 
-import random
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -377,4 +376,5 @@ def _coupling_pairs(
         return pairs
     candidates = [(i, j) for i in range(n_blocks - 1) for j in range(i + 1, n_blocks)]
     count = int(pairs * len(candidates)) if isinstance(pairs, float) else int(pairs)
-    return random.sample(candidates, min(count, len(candidates)))
+    picked = torch.randperm(len(candidates))[: min(count, len(candidates))]
+    return [candidates[i] for i in picked.tolist()]

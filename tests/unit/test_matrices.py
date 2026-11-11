@@ -1,3 +1,5 @@
+import random
+
 import pytest
 import torch
 from torch import nn
@@ -157,6 +159,15 @@ def test_spectral_rejects_what_it_cannot_rescale():
     delay_line = spectral(lambda w: w.copy_(torch.diag(torch.ones(3), -1)), 0.9)
     with pytest.raises(ValueError, match="eigenvalue"):
         delay_line(torch.empty(4, 4))
+
+
+def test_skew_coupling_draws_its_pairs_from_torch():
+    masks = []
+    for python_seed in (0, 1):
+        random.seed(python_seed)
+        torch.manual_seed(0)
+        masks.append(SkewCoupling([2] * 8, pairs=5).mask)
+    assert torch.equal(*masks)
 
 
 def test_complex_initialisers_draw_both_parts():
