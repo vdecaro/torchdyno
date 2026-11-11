@@ -58,8 +58,10 @@ def test_identical_calls_give_identical_results():
 
 
 def test_passes_the_validation_loader_to_the_learner():
-    with pytest.raises(ValueError, match="needs val"):
-        run(BenchmarkSpec(_dataset(val=False), seeds=[0]), _build)
+    with_val = run(BenchmarkSpec(_dataset(), seeds=[0]), _build)
+    without = run(BenchmarkSpec(_dataset(val=False), seeds=[0]), _build)
+    assert "val_score" in with_val.fits[0].history
+    assert "loo_score" in without.fits[0].history
 
 
 def test_rejects_empty_seeds():

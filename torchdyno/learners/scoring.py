@@ -104,6 +104,25 @@ def evaluate(
             targets.append(target)
     if not preds:
         raise ValueError("The loader has no batches to score.")
+    return score_outputs(preds, targets, score_fn)
+
+
+def score_outputs(
+    preds: list[Tensor],
+    targets: list[Tensor],
+    score_fn: Callable[[Tensor, Tensor], Score],
+) -> Score:
+    """Score the outputs of several batches together, as :func:`evaluate` does.
+
+    Args:
+        preds: every batch's predictions, after the washout.
+        targets: every batch's targets, aligned with ``preds``.
+        score_fn: ``score_fn(prediction, target)``, returning any score.
+
+    Returns:
+        The score of the predictions, concatenated; time-aligned ones as rows,
+        without the steps a sequence does not have.
+    """
     if preds[0].ndim == 3:  # noqa: PLR2004 time-aligned: rows of (T·B, O)
         pairs = zip(preds, targets, strict=True)
         rows = [_present(p.flatten(0, 1), t.flatten(0, 1)) for p, t in pairs]

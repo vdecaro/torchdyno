@@ -6,13 +6,17 @@ from tests.unit.compositions import reservoir
 from torchdyno.learners import (
     RLS,
     Ridge,
+    cache_features,
 )
 from torchdyno.matrices import (
     BlockDiagonal,
     Dense,
     Diagonal,
 )
-from torchdyno.objectives import Accuracy
+from torchdyno.objectives import (
+    MSE,
+    Accuracy,
+)
 from torchdyno.readout import (
     Last,
     Mean,
@@ -260,8 +264,85 @@ def test_selects_in_the_direction_of_the_metric():
     assert result.best == {"l2": 1e-3, "score": Accuracy()(model(x), y)}
 
 
-def test_needs_a_linear_readout_and_validation_to_select():
+def test_needs_a_linear_readout_and_a_score_to_select():
     with pytest.raises(TypeError, match=r"nn\.Linear"):
         Ridge().fit(nn.Sequential(nn.Identity(), nn.Identity()), [])
-    with pytest.raises(ValueError, match="needs val"):
+    with pytest.raises(ValueError, match="needs score_fn"):
         Ridge(l2=[1e-6, 1e-3]).fit(_model(2, 1, bias=True), [])
+
+
+@pytest.mark.parametrize("n", [12, 5])  # more and fewer samples than features
+@pytest.mark.parametrize("bias", [False, True])
+def test_without_val_selects_by_exact_leave_one_out(n, bias):
+    torch.manual_seed(0)
+    x = torch.randn(n, 8, dtype=DTYPE)
+    y = x[:, :2] + 0.3 * torch.randn(n, 2, dtype=DTYPE)
+    candidates = [1e-2, 1.0, 1e2]
+    result = Ridge(candidates, score_fn=MSE()).fit(_model(8, 2, bias), [(x, y)])
+    for l2, score in zip(candidates, result.history["loo_score"], strict=True):
+        preds = []
+        for i in range(n):
+            model, rest = _model(8, 2, bias), torch.arange(n) != i
+            Ridge(l2).fit(model, [(x[rest], y[rest])])
+            preds.append(model(x[i : i + 1]))
+        assert score == pytest.approx(MSE()(torch.cat(preds), y))
+
+
+@pytest.mark.parametrize("n", [40, 6])
+def test_class_weights_count_samples_as_repeated(n):
+    torch.manual_seed(0)
+    x = torch.randn(n, 10, dtype=DTYPE)
+    y = (x[:, 0] > 0.5).long()
+    weighted = _model(10, 2, bias=True)
+    Ridge(1e-1, class_weight=[1.0, 3.0]).fit(weighted, [(x, y)])
+    repeated = _model(10, 2, bias=True)
+    ones = y == 1
+    Ridge(1e-1).fit(
+        repeated, [(torch.cat([x] + [x[ones]] * 2), torch.cat([y] + [y[ones]] * 2))]
+    )
+    torch.testing.assert_close(weighted[-1].weight, repeated[-1].weight)
+    torch.testing.assert_close(weighted[-1].bias, repeated[-1].bias)
+    balanced = _model(10, 2, bias=True)
+    Ridge(1e-1, class_weight="balanced").fit(balanced, [(x, y)])
+    counts = torch.bincount(y).double()
+    explicit = _model(10, 2, bias=True)
+    Ridge(1e-1, class_weight=n / (2 * counts)).fit(explicit, [(x, y)])
+    torch.testing.assert_close(balanced[-1].weight, explicit[-1].weight)
+    with pytest.raises(ValueError, match="integer class targets"):
+        Ridge(class_weight=[1.0, 2.0]).fit(_model(10, 2, bias=True), [(x, x[:, :2])])
+
+
+def test_trying_candidates_leaves_the_solution_of_each_unchanged():
+    torch.manual_seed(0)
+    x = torch.randn(50, 6, dtype=DTYPE)
+    y = x[:, :1] + 0.1 * torch.randn(50, 1, dtype=DTYPE)
+    swept = _model(6, 1, bias=True)
+    result = Ridge([1e4, 1e-6], score_fn=MSE()).fit(swept, [(x, y)], [(x, y)])
+    assert result.best["l2"] == 1e-6
+    alone = _model(6, 1, bias=True)
+    Ridge(1e-6).fit(alone, [(x, y)])
+    assert torch.equal(swept[-1].weight, alone[-1].weight)
+
+
+def test_scores_val_through_layers_after_the_readout():
+    torch.manual_seed(0)
+    x = torch.randn(30, 4, dtype=DTYPE)
+    y = torch.tanh(x[:, :1])
+    model = nn.Sequential(nn.Linear(4, 1, dtype=DTYPE), nn.Tanh())
+    result = Ridge([1e-6, 1e2], score_fn=MSE(), readout="0").fit(
+        model, [(x, y)], [(x, y)]
+    )
+    assert result.best["score"] == pytest.approx(MSE()(model(x), y))
+
+
+def test_a_readout_fits_the_same_on_cached_features():
+    torch.manual_seed(0)
+    model = nn.Sequential(
+        reservoir(1, 16, dtype=DTYPE), Mean(), nn.Linear(16, 2, dtype=DTYPE)
+    )
+    x, y = torch.randn(20, 8, 1, dtype=DTYPE), torch.randint(2, (8,))
+    cached = cache_features(model[:-1], [(x, y)])
+    Ridge(1e-3).fit(nn.Sequential(model[-1]), cached)
+    weight = model[-1].weight.detach().clone()
+    Ridge(1e-3).fit(model, [(x, y)])
+    torch.testing.assert_close(weight, model[-1].weight)

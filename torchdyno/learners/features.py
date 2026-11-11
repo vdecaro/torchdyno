@@ -1,4 +1,4 @@
-"""Finding a model's linear readout, and the rows it is fitted on."""
+"""Finding a model's linear readout, the rows it is fitted on, and caching them."""
 
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ from torchdyno.learners.scoring import (
 from torchdyno.matrices.dense import Dense
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from torch import Tensor
 
 
@@ -114,3 +116,26 @@ def feature_rows(
             "NaN in some but not all features of a step."
         )
     return features.double(), y.double()
+
+
+@torch.no_grad()
+def cache_features(
+    prefix: nn.Module, loader: Iterable[tuple[Tensor, Tensor]]
+) -> list[tuple[Tensor, Tensor]]:
+    """Run a frozen part of a model once over a loader, in eval mode.
+
+    The result is a loader for the rest of the model, so a readout can be
+    fitted and scored many times without rerunning the part before it, e.g.
+    ``Ridge().fit(nn.Sequential(model[-1]), cache_features(model[:-1], train))``,
+    which fits ``model[-1]`` in place.
+
+    Args:
+        prefix: the part of the model to run.
+        loader: batches of time-first ``(x, y)``.
+
+    Returns:
+        The batches ``(prefix(x), y)``.
+    """
+    with restore_modes(prefix):
+        prefix.eval()
+        return [(prefix(x), y) for x, y in loader]

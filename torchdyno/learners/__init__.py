@@ -2,6 +2,7 @@
 
 from .backprop import Backprop
 from .chain import Chain
+from .features import cache_features
 from .force import FORCE
 from .plasticity import IntrinsicPlasticity
 from .protocol import (
@@ -23,5 +24,6 @@ __all__ = [
     "Learner",
     "QuantileBias",
     "Ridge",
+    "cache_features",
     "evaluate",
 ]
