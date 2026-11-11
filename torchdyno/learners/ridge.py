@@ -165,7 +165,7 @@ class Ridge:
                 rows, targets = centered, targets - mean_y
             rows = rows / scale
             kernel = rows @ rows.T
-            eye = torch.eye(n, dtype=kernel.dtype)
+            eye = torch.eye(n, dtype=kernel.dtype, device=kernel.device)
 
             def solve(l2: float) -> tuple[Tensor, Tensor]:
                 coef = rows.T @ torch.linalg.solve(kernel + l2 * eye, targets)
@@ -181,7 +181,7 @@ class Ridge:
             gram, cross = gram_c, cross - n * torch.outer(mean_x, mean_y)
         gram = gram / torch.outer(scale, scale)
         cross = cross / scale[:, None]
-        eye = torch.eye(gram.shape[0], dtype=gram.dtype)
+        eye = torch.eye(gram.shape[0], dtype=gram.dtype, device=gram.device)
 
         def solve_primal(l2: float) -> tuple[Tensor, Tensor]:
             coef = torch.linalg.solve(gram + l2 * eye, cross)

@@ -128,6 +128,16 @@ def test_rejects_features_that_are_not_finite(learner):
         learner.fit(model, [(x, torch.zeros(8, dtype=torch.long))])
 
 
+@pytest.mark.parametrize("learner", [Ridge(1e-3), RLS(1e-3)])
+@pytest.mark.parametrize("n", [40, 3])  # primal and dual
+def test_solves_on_the_device_of_the_features(learner, n):
+    x, y = torch.randn(n, 4, dtype=DTYPE), torch.randn(n, 2, dtype=DTYPE)
+    model = _model(4, 2, bias=True)
+    with torch.device("meta"):  # where tensors made without a device would land
+        learner.fit(model, [(x, y)])
+    assert model[-1].weight.isfinite().all()
+
+
 def test_selects_l2_on_validation():
     torch.manual_seed(0)
     x = torch.randn(40, 6, dtype=DTYPE)

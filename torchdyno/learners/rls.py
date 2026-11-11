@@ -67,8 +67,9 @@ class RLS:
         rng = get_rng_state()
         bias = readout.bias is not None
         size = readout.in_features + bias
-        p = torch.eye(size, dtype=torch.float64) / self.l2
-        w = torch.zeros(size, readout.out_features, dtype=torch.float64)
+        device = readout.weight.device
+        p = torch.eye(size, dtype=torch.float64, device=device) / self.l2
+        w = torch.zeros(size, readout.out_features, dtype=torch.float64, device=device)
         for x, y in train:
             rows, targets = feature_rows(model, x, y, self.washout)
             if bias:
