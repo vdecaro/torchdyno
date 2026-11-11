@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    overload,
+)
 
 import torch
 import torch.nn.functional as F
@@ -157,6 +160,18 @@ class Concat(nn.ModuleList):
             modules: the modules to run.
         """
         super().__init__(modules)
+
+    @overload
+    def __getitem__(self, idx: slice) -> Concat: ...
+
+    @overload
+    def __getitem__(self, idx: int) -> nn.Module: ...
+
+    def __getitem__(self, idx: int | slice) -> nn.Module:
+        """A module, or a :class:`Concat` of a slice of them."""
+        if isinstance(idx, slice):
+            return Concat(*list(self)[idx])
+        return super().__getitem__(idx)
 
     def forward(self, x: Tensor) -> Tensor:
         """Run every module on ``x``.

@@ -5,10 +5,15 @@ from torch import nn
 from tests.unit.compositions import lru
 from tests.unit.test_testing import SumCell
 from torchdyno.layers import (
+    Concat,
     RandomConv,
     Recurrent,
     Scan,
     Stack,
+)
+from torchdyno.pooling import (
+    Last,
+    Mean,
 )
 from torchdyno.testing import assert_layer_conforms
 
@@ -53,3 +58,12 @@ def test_recurrent_layers_reject_a_state_of_the_wrong_shape(make):
 def test_random_conv_rejects_another_channel_count():
     with pytest.raises(ValueError, match="3 channels"):
         RandomConv(3, length=12, kernels=4)(torch.randn(12, 2, 2))
+
+
+def test_a_slice_of_a_concat_is_a_concat():
+    pooled = Concat(Last(), Mean(), Last())
+    first_two = pooled[:2]
+    assert isinstance(first_two, Concat)
+    x = torch.randn(4, 2, 3)
+    torch.testing.assert_close(first_two(x), pooled(x)[..., :6])
+    assert isinstance(pooled[1], Mean)
