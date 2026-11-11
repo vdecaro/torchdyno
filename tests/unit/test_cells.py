@@ -14,6 +14,7 @@ from tests.unit.compositions import (
 from torchdyno.cells import (
     ClosedFormCell,
     EulerCell,
+    LeakyCell,
     OscillatorCell,
 )
 from torchdyno.layers import (
@@ -178,3 +179,17 @@ def test_cfc():
 def test_closed_form_cell_needs_a_positive_step():
     with pytest.raises(ValueError, match="dt must be > 0"):
         ClosedFormCell(nn.Identity(), nn.Linear(6, 16), dt=0.0)
+
+
+@pytest.mark.parametrize(
+    ("make", "name"),
+    [
+        (lambda: LeakyCell(Dense(2, 4), Dense(4, 4), leak=torch.rand(4)), "leak"),
+        (lambda: EulerCell(Dense(2, 4), Dense(4, 4), step=torch.rand(4)), "step"),
+    ],
+)
+def test_tensor_hyperparameters_follow_the_cell(make, name):
+    cell, fresh = make(), make()
+    fresh.load_state_dict(cell.state_dict())
+    assert torch.equal(getattr(fresh, name), getattr(cell, name))
+    assert getattr(cell.double(), name).dtype == torch.float64

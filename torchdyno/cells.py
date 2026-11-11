@@ -72,17 +72,19 @@ class Gate(nn.Module):
 class EulerCell(Cell):
     """One Euler step of a leaky ODE: ``v' = v + ε ⊙ (-v + W φ(v) + L v + B u)``.
 
-    ``ε`` is a constant or a module such as :class:`Gate` that computes it from
-    the input and the state. With a block-diagonal ``W`` and a skew-symmetric
-    ``L`` this is an assembly of coupled modules.
+    ``ε`` is a constant, a per-unit tensor, or a module such as :class:`Gate`
+    that computes it from the input and the state. With a block-diagonal ``W``
+    and a skew-symmetric ``L`` this is an assembly of coupled modules.
     """
+
+    step: float | Tensor | nn.Module
 
     def __init__(
         self,
         input: LinearMap,
         recurrent: LinearMap,
         coupling: LinearMap | None = None,
-        step: float | nn.Module = 0.01,
+        step: float | Tensor | nn.Module = 0.01,
         activation: Callable[[Tensor], Tensor] = torch.relu,
     ):
         """Initializes the cell.
@@ -91,14 +93,18 @@ class EulerCell(Cell):
             input: the input matrix ``B``.
             recurrent: the matrix ``W`` applied to ``φ(v)``.
             coupling: an optional matrix ``L`` applied to ``v``.
-            step: the step size ``ε``, or a module ``step(u, v) -> ε``.
+            step: the step size ``ε``: a constant, a tensor kept as a buffer,
+                or a module ``step(u, v) -> ε``.
             activation: the activation ``φ``.
         """
         super().__init__()
         self.input = input
         self.recurrent = recurrent
         self.coupling = coupling
-        self.step = step
+        if isinstance(step, torch.Tensor):
+            self.register_buffer("step", step)
+        else:
+            self.step = step
         self.activation = activation
         self.state_size = recurrent.out_features
 
@@ -127,11 +133,13 @@ class LeakyCell(Cell):
     change only under intrinsic plasticity or backprop.
     """
 
+    leak: float | Tensor
+
     def __init__(
         self,
         input: LinearMap,
         recurrent: LinearMap,
-        leak: float = 1.0,
+        leak: float | Tensor = 1.0,
         activation: Callable[[Tensor], Tensor] = torch.tanh,
     ):
         """Initializes the cell.
@@ -139,13 +147,17 @@ class LeakyCell(Cell):
         Args:
             input: the input matrix ``B``, with a bias if the units need one.
             recurrent: the recurrent matrix ``W``.
-            leak: the leak rate ``a``.
+            leak: the leak rate ``a``: a constant, or a per-unit tensor kept as
+                a buffer.
             activation: the activation ``φ``.
         """
         super().__init__()
         self.input = input
         self.recurrent = recurrent
-        self.leak = leak
+        if isinstance(leak, torch.Tensor):
+            self.register_buffer("leak", leak)
+        else:
+            self.leak = leak
         self.activation = activation
         self.state_size = recurrent.out_features
         dtype = next(recurrent.parameters()).dtype
