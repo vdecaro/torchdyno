@@ -91,8 +91,9 @@ def feature_rows(
 
     Raises:
         TypeError: if the last module is not an ``nn.Linear``.
-        ValueError: if ``washout`` is set for pooled features, or the targets
-            don't match the features and the readout's outputs.
+        ValueError: if ``washout`` is set for pooled features, a feature is not
+            finite, or the targets don't match the features and the readout's
+            outputs.
     """
     readout = model[-1]
     if not isinstance(readout, nn.Linear):
@@ -102,6 +103,12 @@ def feature_rows(
         features, y = features[washout:], y[washout:]
     elif washout:
         raise ValueError("washout needs time-aligned (T, B, H) features.")
+    if not features.isfinite().all():
+        rows = int((~features.isfinite()).any(-1).sum())
+        raise ValueError(
+            f"{rows} feature rows are not finite, e.g. NaN from positions a layer "
+            "did not produce, or a state that diverged."
+        )
     shape = tuple(y.shape)
     if not y.is_floating_point():
         y = F.one_hot(y, readout.out_features)
