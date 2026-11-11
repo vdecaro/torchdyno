@@ -4,6 +4,7 @@ from torch import nn
 
 from tests.unit.compositions import adadiag
 from torchdyno.learners import Backprop
+from torchdyno.metrics import Accuracy
 from torchdyno.pooling import Last
 
 
@@ -114,3 +115,81 @@ def test_leaves_the_washout_out_of_the_loss_and_the_validation_score():
     result = trainer.fit(nn.Sequential(nn.Linear(2, 2)), data, data)
     assert seen == [7]
     assert result.history["val_score"] == [7.0 * 4]  # one row per kept timestep
+
+
+def test_clips_the_gradient_norm():
+    model = nn.Sequential(nn.Linear(2, 1))
+    before = nn.utils.parameters_to_vector(model.parameters()).detach()
+    data = [(torch.randn(16, 2), 1e6 * torch.ones(16, 1))]
+    Backprop(nn.MSELoss(), optimizer="sgd", lr=1.0, epochs=1, clip=0.5).fit(model, data)
+    after = nn.utils.parameters_to_vector(model.parameters()).detach()
+    assert (after - before).norm() == pytest.approx(0.5)
+
+
+def test_steps_the_scheduler_after_every_batch_when_asked():
+    seen = []
+
+    def scheduler(opt):
+        seen.append(opt)
+        return torch.optim.lr_scheduler.StepLR(opt, step_size=1, gamma=0.5)
+
+    Backprop(
+        nn.CrossEntropyLoss(), lr=1.0, epochs=3, scheduler=scheduler, schedule="batch"
+    ).fit(_model(), _data() + _data(1))
+    assert seen[0].param_groups[0]["lr"] == pytest.approx(0.5**6)
+
+
+def test_a_callback_sees_every_epoch_and_can_stop_training():
+    seen = []
+
+    def callback(epoch, history, model):
+        seen.append((epoch, len(history["train_loss"]), model))
+        return epoch == 1
+
+    model = _model()
+    result = Backprop(nn.CrossEntropyLoss(), epochs=5, callback=callback).fit(
+        model, _data()
+    )
+    assert seen == [(0, 1, model), (1, 2, model)]
+    assert result.best == {"epochs": 2}
+
+
+def test_keeps_the_parameters_of_the_best_epoch():
+    scores, snapshots = iter([0.5, 0.9, 0.7]), []
+    model = _model()
+    result = Backprop(
+        nn.CrossEntropyLoss(),
+        lr=1e-2,
+        epochs=3,
+        score_fn=lambda p, t: next(scores),
+        mode="max",
+        keep_best=True,
+        callback=lambda e, h, m: snapshots.append(_snapshot(m)),
+    ).fit(model, _data(), _data(1))
+    assert result.best == {"epoch": 1, "score": 0.9, "epochs": 3}
+    assert not _changed(snapshots[1], model)
+
+
+def test_keeping_the_best_epoch_needs_a_validation_score():
+    with pytest.raises(ValueError, match="score_fn and a mode"):
+        Backprop(nn.CrossEntropyLoss(), keep_best=True)
+    trainer = Backprop(nn.CrossEntropyLoss(), score_fn=Accuracy(), keep_best=True)
+    with pytest.raises(ValueError, match="needs val"):
+        trainer.fit(_model(), _data())
+
+
+def test_the_optimizer_gets_parameters_by_name_to_group_them():
+    names = []
+
+    def optimizer(named):
+        names.extend(name for name, _ in named)
+        transitions = [p for name, p in named if name.startswith("1.")]
+        rest = [p for name, p in named if not name.startswith("1.")]
+        return torch.optim.AdamW(
+            [{"params": transitions, "weight_decay": 0.0}, {"params": rest}]
+        )
+
+    Backprop(nn.CrossEntropyLoss(), optimizer=optimizer, epochs=1).fit(
+        _model(), _data()
+    )
+    assert "0.weight" in names and any(name.startswith("1.cell") for name in names)
