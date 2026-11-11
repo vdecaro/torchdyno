@@ -45,16 +45,41 @@ def _check(x: Tensor, h0: Tensor | None = None, state_size: int = 0) -> None:
 
 
 class Recurrent(nn.Module):
-    """Run a cell over time, one step after the other."""
+    """Run a cell over time, one step after the other.
 
-    def __init__(self, cell: Cell):
+    With ``carry=True`` the layer keeps its last state, detached, and the next
+    call starts from it, e.g. for truncated backprop through time or a stream
+    fed in chunks; :meth:`reset_state` starts over.
+    """
+
+    def __init__(self, cell: Cell, carry: bool = False):
         """Initializes the layer.
 
         Args:
             cell: the cell to run.
+            carry: start every call from the last state of the previous one.
         """
         super().__init__()
         self.cell = cell
+        self.carry = carry
+        self.state: Tensor | None = None
+
+    def reset_state(self) -> None:
+        """Forget the carried state: the next call starts from zeros."""
+        self.state = None
+
+    def _start(self, x: Tensor, h0: Tensor | None) -> Tensor | None:
+        """Check the input and pick the state to start from."""
+        if h0 is None and self.carry:
+            h0 = self.state
+        _check(x, h0, self.cell.state_size)
+        return h0
+
+    def _carry(self, out: Tensor) -> Tensor:
+        """Keep the last state when carrying; return ``out``."""
+        if self.carry:
+            self.state = out[-1].detach()
+        return out
 
     def forward(self, x: Tensor, h0: Tensor | None = None) -> Tensor:
         """Run the cell over ``x``.
@@ -62,21 +87,21 @@ class Recurrent(nn.Module):
         Args:
             x: the input sequence, shape ``(T, B, F)``.
             h0: the state to start from, e.g. the last output of a previous
-                call; ``None`` starts from zeros.
+                call; ``None`` starts from zeros, or from the carried state.
 
         Returns:
             The state after every timestep, shape ``(T, B, state_size)``.
 
         Raises:
-            ValueError: if ``x`` or ``h0`` has the wrong shape.
+            ValueError: if ``x`` or the starting state has the wrong shape.
         """
-        _check(x, h0, self.cell.state_size)
+        h0 = self._start(x, h0)
         h = x.new_zeros(x.shape[1], self.cell.state_size) if h0 is None else h0
         states = []
         for u in x:
             h = self.cell(u, h)
             states.append(h)
-        return torch.stack(states)
+        return self._carry(torch.stack(states))
 
 
 class Scan(Recurrent):
@@ -89,11 +114,12 @@ class Scan(Recurrent):
 
     cell: LinearDiagonalCell
 
-    def __init__(self, cell: LinearDiagonalCell):
+    def __init__(self, cell: LinearDiagonalCell, carry: bool = False):
         """Initializes the layer.
 
         Args:
             cell: the linear cell to run.
+            carry: start every call from the last state of the previous one.
 
         Raises:
             TypeError: if the cell has no ``coefficients(u)`` to scan.
@@ -103,7 +129,7 @@ class Scan(Recurrent):
                 f"Scan needs a linear cell with coefficients(u), such as "
                 f"LinearDiagonalCell, not {type(cell).__name__}; run it with Recurrent."
             )
-        super().__init__(cell)
+        super().__init__(cell, carry)
 
     def forward(self, x: Tensor, h0: Tensor | None = None) -> Tensor:
         """Run the cell over ``x``.
@@ -111,22 +137,22 @@ class Scan(Recurrent):
         Args:
             x: the input sequence, shape ``(T, B, F)``.
             h0: the state to start from, e.g. the last output of a previous
-                call; ``None`` starts from zeros.
+                call; ``None`` starts from zeros, or from the carried state.
 
         Returns:
             The state after every timestep, shape ``(T, B, state_size)``.
 
         Raises:
-            ValueError: if ``x`` or ``h0`` has the wrong shape.
+            ValueError: if ``x`` or the starting state has the wrong shape.
         """
-        _check(x, h0, self.cell.state_size)
+        h0 = self._start(x, h0)
         a, b = self.cell.coefficients(x)
         if h0 is not None:
             modes = self.cell.modes
             first = b[0] + a * torch.complex(h0[..., :modes], h0[..., modes:])
             b = torch.cat([first.unsqueeze(0), b[1:]])
         h = _scan(a.expand_as(b), b)
-        return torch.cat([h.real, h.imag], dim=-1)
+        return self._carry(torch.cat([h.real, h.imag], dim=-1))
 
 
 def _scan(a: Tensor, b: Tensor) -> Tensor:

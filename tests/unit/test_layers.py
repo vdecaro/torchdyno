@@ -72,3 +72,15 @@ def test_stack_continues_from_the_states_it_returned():
     x = torch.randn(6, 2, 3)
     out = stack(x)
     torch.testing.assert_close(stack(x[3:], h0=out[2]), out[3:])
+
+
+@pytest.mark.parametrize("make", [LAYERS["recurrent"], LAYERS["scan"]])
+def test_carrying_layers_continue_from_their_last_state_until_reset(make):
+    layer, x = make(), torch.randn(6, 2, 3)
+    full = layer(x)
+    layer.carry = True
+    layer(x[:3])
+    torch.testing.assert_close(layer(x[3:]), full[3:])
+    assert not layer.state.requires_grad
+    layer.reset_state()
+    torch.testing.assert_close(layer(x), full)
