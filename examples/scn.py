@@ -9,12 +9,11 @@ from torch import nn
 
 from examples.data import frequency_task
 from torchdyno import seed_all
-from torchdyno.cells import EulerCell, LeakyField
-from torchdyno.layers import Recurrent
 from torchdyno.learners import Backprop, evaluate
 from torchdyno.matrices import BlockDiagonal, Dense, SkewCoupling, normal
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import Last
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import Last
+from torchdyno.sequence import EulerCell, LeakyField, Recurrent
 
 seed_all(0)
 train, _, test = frequency_task()

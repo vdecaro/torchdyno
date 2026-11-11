@@ -1,7 +1,7 @@
 """Conformance checks for layers that run a cell over time.
 
 ``assert_layer_conforms`` checks a layer such as
-:class:`~torchdyno.layers.Recurrent` against the plain loop over its cell. Use it
+:class:`~torchdyno.sequence.Recurrent` against the plain loop over its cell. Use it
 in the tests of a new cell or layer. It raises ``AssertionError`` and needs no
 test framework.
 """
@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING
 import torch
 from torch.testing import assert_close
 
-from torchdyno.learners.base import restore_modes
+from torchdyno.learners.scoring import restore_modes
 
 if TYPE_CHECKING:
     from torch import Tensor
 
-    from torchdyno.layers import Recurrent
+    from torchdyno.sequence import Recurrent
 
 __all__ = [
     "assert_layer_conforms",
@@ -35,7 +35,7 @@ def assert_layer_conforms(layer: Recurrent, x: Tensor) -> Tensor:
     dropout does not make the runs differ, and is left in the modes it had.
 
     Args:
-        layer: a :class:`~torchdyno.layers.Recurrent` layer or a subclass.
+        layer: a :class:`~torchdyno.sequence.Recurrent` layer or a subclass.
         x: a ``(T, B, F)`` input with at least two timesteps and two sequences.
 
     Returns:

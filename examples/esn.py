@@ -9,10 +9,9 @@ from torch import nn
 
 from torchdyno import seed_all
 from torchdyno.benchmark import lorenz_benchmark
-from torchdyno.cells import LeakyCell
-from torchdyno.layers import Recurrent
 from torchdyno.learners import Ridge, evaluate
 from torchdyno.matrices import Dense, spectral, uniform
+from torchdyno.sequence import LeakyCell, Recurrent
 
 seed_all(0)
 data = lorenz_benchmark(length=4000, target_delay=5, washout=100)

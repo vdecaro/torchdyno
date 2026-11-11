@@ -10,10 +10,10 @@ from torch import nn
 
 from examples.data import frequency_task
 from torchdyno import seed_all
-from torchdyno.layers import Concat, RandomConv
 from torchdyno.learners import Ridge, evaluate
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import PPV, Max
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import PPV, Max
+from torchdyno.sequence import Concat, RandomConv
 
 seed_all(0)
 train, val, test = frequency_task()

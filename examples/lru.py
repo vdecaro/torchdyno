@@ -12,12 +12,11 @@ from torch import nn
 
 from examples.data import frequency_task
 from torchdyno import seed_all
-from torchdyno.cells import LinearDiagonalCell, RingDiagonal
-from torchdyno.layers import Scan
 from torchdyno.learners import Backprop, evaluate
 from torchdyno.matrices import Dense, normal
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import Mean
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import Mean
+from torchdyno.sequence import LinearDiagonalCell, RingDiagonal, Scan
 
 seed_all(0)
 train, _, test = frequency_task()

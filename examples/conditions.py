@@ -13,11 +13,10 @@ from torchdyno.benchmark import (
     conditions_table,
     run_conditions,
 )
-from torchdyno.cells import EulerCell, Gate, LeakyField
-from torchdyno.layers import Recurrent
 from torchdyno.matrices import Dense, Diagonal, SkewCoupling, normal
-from torchdyno.pooling import Last
-from torchdyno.tasks import SequenceClassification
+from torchdyno.objectives import SequenceClassification
+from torchdyno.readout import Last
+from torchdyno.sequence import EulerCell, Gate, LeakyField, Recurrent
 
 train, val, test = frequency_task()
 data = BenchmarkDataset("frequency", SequenceClassification(), train, test, val)

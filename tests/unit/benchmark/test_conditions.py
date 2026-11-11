@@ -10,8 +10,8 @@ from torchdyno.benchmark import (
     conditions_table,
     run_conditions,
 )
-from torchdyno.pooling import Mean
-from torchdyno.tasks import SequenceClassification
+from torchdyno.objectives import SequenceClassification
+from torchdyno.readout import Mean
 
 
 def _spec():

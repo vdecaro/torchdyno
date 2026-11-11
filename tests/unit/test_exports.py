@@ -7,13 +7,11 @@ import torchdyno
 
 MODULES = [
     "benchmark",
-    "cells",
-    "layers",
     "learners",
     "matrices",
-    "metrics",
-    "pooling",
-    "tasks",
+    "objectives",
+    "readout",
+    "sequence",
     "testing",
 ]
 

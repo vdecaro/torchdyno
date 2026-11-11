@@ -28,12 +28,14 @@ pip install torchdyno
 
 ## Usage
 
-A model is a plain `torch.nn.Sequential` of parts, which come in four kinds:
+A model is a plain `torch.nn.Sequential` of parts from four levels, each a subpackage:
 
-- `torchdyno.matrices` defines weight matrices: dense, diagonal, block-diagonal and skew-symmetric couplings, with their initialisers.
-- `torchdyno.cells` and `torchdyno.layers` define how a sequence is processed: recurrent cells run step by step or with a parallel scan, and random convolution kernels.
-- `torchdyno.pooling` reduces a sequence over time; an `nn.Linear` maps the result to outputs.
-- `torchdyno.learners`, `torchdyno.tasks` and `torchdyno.metrics` fit and score the model: ridge regression, recursive least squares, backprop and intrinsic plasticity.
+1. `torchdyno.matrices`: weight matrices (dense, diagonal, block-diagonal, skew-symmetric couplings) and their initialisers.
+2. `torchdyno.sequence`: how a sequence is processed: recurrent cells, run step by step or by a parallel scan, and random convolution kernels.
+3. `torchdyno.readout`: pooling over time; an `nn.Linear` maps the result to outputs.
+4. `torchdyno.objectives`: the tasks and metrics a model is trained and scored for.
+
+`torchdyno.learners` fits a model: ridge regression, recursive least squares, backprop and intrinsic plasticity, alone or chained.
 
 An assembly of diagonal modules with an adaptive step, trained end to end:
 
@@ -41,11 +43,10 @@ An assembly of diagonal modules with an adaptive step, trained end to end:
 import torch
 from torch import nn
 
-from torchdyno.cells import EulerCell, Gate, LeakyField
-from torchdyno.layers import Recurrent
 from torchdyno.learners import Backprop
 from torchdyno.matrices import Dense, Diagonal, SkewCoupling, normal
-from torchdyno.pooling import Last
+from torchdyno.readout import Last
+from torchdyno.sequence import EulerCell, Gate, LeakyField, Recurrent
 
 H = 16 * 8
 model = nn.Sequential(
@@ -69,10 +70,10 @@ Backprop(nn.CrossEntropyLoss(), lr=1e-2, epochs=30).fit(model, train)
 The same parts compose other models. ROCKET's features read out by ridge regression:
 
 ```python
-from torchdyno.layers import Concat, RandomConv
 from torchdyno.learners import Ridge
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import PPV, Max
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import PPV, Max
+from torchdyno.sequence import Concat, RandomConv
 
 rocket = nn.Sequential(
     RandomConv(channels=1, length=60, kernels=10_000),

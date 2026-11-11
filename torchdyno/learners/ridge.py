@@ -9,12 +9,12 @@ from typing import (
 
 import torch
 
-from torchdyno.learners.base import (
-    FitResult,
-    evaluate,
+from torchdyno.learners.features import (
     feature_rows,
     find_readout,
 )
+from torchdyno.learners.protocol import FitResult
+from torchdyno.learners.scoring import evaluate
 from torchdyno.reproducibility import get_rng_state
 
 if TYPE_CHECKING:
@@ -66,7 +66,7 @@ class Ridge:
                 candidates.
             mode: ``"min"`` or ``"max"``: whether the best score is smallest or
                 largest; ``None`` takes ``score_fn.mode``, as a
-                :class:`~torchdyno.metrics.Metric` has.
+                :class:`~torchdyno.objectives.Metric` has.
             readout: the readout's name in the model, as
                 ``model.get_submodule`` takes it; ``None`` takes ``model[-1]``.
 

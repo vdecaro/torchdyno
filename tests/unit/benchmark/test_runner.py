@@ -17,8 +17,8 @@ from torchdyno.learners import (
     Backprop,
     Ridge,
 )
-from torchdyno.pooling import Last
-from torchdyno.tasks import Regression
+from torchdyno.objectives import Regression
+from torchdyno.readout import Last
 
 
 def _dataset(val=True):

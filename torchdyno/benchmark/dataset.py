@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
     from torch import Tensor
 
-    from torchdyno.tasks import Task
+    from torchdyno.objectives import Task
 
 
 @dataclass

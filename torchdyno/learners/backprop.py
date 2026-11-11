@@ -10,8 +10,8 @@ from typing import (
 
 import torch
 
-from torchdyno.learners.base import (
-    FitResult,
+from torchdyno.learners.protocol import FitResult
+from torchdyno.learners.scoring import (
     drop_washout,
     evaluate,
     restore_modes,

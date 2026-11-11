@@ -10,7 +10,7 @@ from typing import (
 import torch
 import torch.nn.functional as F
 
-from torchdyno.learners.base import FitResult
+from torchdyno.learners.protocol import FitResult
 from torchdyno.reproducibility import get_rng_state
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class IntrinsicPlasticity:
     From Schrauwen et al., "Improving reservoirs using intrinsic plasticity"
     (2008). A cell takes part if it has a per-unit ``gain`` and ``bias`` and a
     ``preactivation(u, h)``, and its activation is tanh, as for
-    :class:`~torchdyno.cells.LeakyCell`. Each unit's activation
+    :class:`~torchdyno.sequence.LeakyCell`. Each unit's activation
     ``h = tanh(g x + c)``, with ``x`` the cell's preactivation, is moved toward
     ``N(mu, sigma²)`` by the closed-form gradients of the KL divergence::
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 from torchdyno.benchmark.dataset import BenchmarkDataset
-from torchdyno.tasks import Regression
+from torchdyno.objectives import Regression
 
 
 def lorenz_system(

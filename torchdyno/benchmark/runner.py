@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         FitResult,
         Learner,
     )
-    from torchdyno.tasks import Task
+    from torchdyno.objectives import Task
 
 
 @dataclass

@@ -1,14 +1,18 @@
-"""Top-level package for TorchDyno."""
+"""Top-level package for TorchDyno.
+
+A model is a plain ``nn.Sequential`` of parts from four levels:
+:mod:`~torchdyno.matrices`, :mod:`~torchdyno.sequence`,
+:mod:`~torchdyno.readout` and :mod:`~torchdyno.objectives`, fitted by
+:mod:`~torchdyno.learners`.
+"""
 
 from . import (
     benchmark,
-    cells,
-    layers,
     learners,
     matrices,
-    metrics,
-    pooling,
-    tasks,
+    objectives,
+    readout,
+    sequence,
     testing,
 )
 from .reproducibility import (
@@ -19,16 +23,14 @@ from .reproducibility import (
 
 __all__ = [
     "benchmark",
-    "cells",
     "get_rng_state",
-    "layers",
     "learners",
     "matrices",
-    "metrics",
-    "pooling",
+    "objectives",
+    "readout",
     "seed_all",
+    "sequence",
     "set_rng_state",
-    "tasks",
     "testing",
 ]
 

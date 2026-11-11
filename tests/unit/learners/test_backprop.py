@@ -4,8 +4,8 @@ from torch import nn
 
 from tests.unit.compositions import adadiag
 from torchdyno.learners import Backprop
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import Last
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import Last
 
 
 def _data(seed=0):

@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from torchdyno.learners.base import (
-    FitResult,
+from torchdyno.learners.features import (
     feature_rows,
     find_readout,
 )
+from torchdyno.learners.protocol import FitResult
 from torchdyno.reproducibility import get_rng_state
 
 if TYPE_CHECKING:

@@ -11,12 +11,11 @@ from torch import nn
 
 from examples.data import frequency_task
 from torchdyno import seed_all
-from torchdyno.cells import LinearDiagonalCell, ZOHDiagonal
-from torchdyno.layers import Concat, Scan
 from torchdyno.learners import Ridge, evaluate
 from torchdyno.matrices import Dense, normal
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import PPV, Max
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import PPV, Max
+from torchdyno.sequence import Concat, LinearDiagonalCell, Scan, ZOHDiagonal
 
 seed_all(0)
 train, val, test = frequency_task()

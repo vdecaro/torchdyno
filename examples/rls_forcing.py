@@ -11,10 +11,9 @@ from torch import nn
 
 from torchdyno import seed_all
 from torchdyno.benchmark import lorenz_system
-from torchdyno.cells import LeakyCell
-from torchdyno.layers import Recurrent
 from torchdyno.learners import RLS
 from torchdyno.matrices import Dense, spectral, uniform
+from torchdyno.sequence import LeakyCell, Recurrent
 
 seed_all(0)
 series = lorenz_system(3000).unsqueeze(1)  # (T, 1, 3)

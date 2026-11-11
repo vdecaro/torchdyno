@@ -7,12 +7,11 @@ from torch import nn
 
 from examples.data import frequency_task
 from torchdyno import seed_all
-from torchdyno.cells import OscillatorCell
-from torchdyno.layers import Recurrent
 from torchdyno.learners import Backprop, evaluate
 from torchdyno.matrices import Dense, uniform
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import Last
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import Last
+from torchdyno.sequence import OscillatorCell, Recurrent
 
 seed_all(0)
 train, _, test = frequency_task()

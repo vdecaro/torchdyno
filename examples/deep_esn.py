@@ -9,10 +9,9 @@ from torch import nn
 
 from torchdyno import seed_all
 from torchdyno.benchmark import lorenz_benchmark
-from torchdyno.cells import LeakyCell
-from torchdyno.layers import Recurrent, Stack
 from torchdyno.learners import Ridge, evaluate
 from torchdyno.matrices import Dense, spectral, uniform
+from torchdyno.sequence import LeakyCell, Recurrent, Stack
 
 
 def reservoir(inputs, size):

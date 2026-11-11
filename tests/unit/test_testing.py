@@ -3,9 +3,11 @@ import torch
 from torch import nn
 
 from tests.unit.compositions import COMPOSITIONS
-from torchdyno.cells import Cell
-from torchdyno.layers import Recurrent
 from torchdyno.matrices import Dense
+from torchdyno.sequence import (
+    Cell,
+    Recurrent,
+)
 from torchdyno.testing import assert_layer_conforms
 
 

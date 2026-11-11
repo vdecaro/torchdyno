@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from torchdyno.benchmark.runner import BenchmarkResult
     from torchdyno.benchmark.spec import BenchmarkSpec
     from torchdyno.learners import Learner
-    from torchdyno.tasks import Task
+    from torchdyno.objectives import Task
 
 CONDITIONS = ("readout", "frozen", "trained")
 

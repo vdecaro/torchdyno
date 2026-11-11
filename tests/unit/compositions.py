@@ -3,18 +3,6 @@
 import torch
 from torch import nn
 
-from torchdyno.cells import (
-    ClosedFormCell,
-    EulerCell,
-    Gate,
-    LeakyCell,
-    LeakyField,
-    LinearDiagonalCell,
-    OscillatorCell,
-    RingDiagonal,
-    ZOHDiagonal,
-)
-from torchdyno.layers import Recurrent
 from torchdyno.matrices import (
     BlockDiagonal,
     Dense,
@@ -23,6 +11,18 @@ from torchdyno.matrices import (
     normal,
     spectral,
     uniform,
+)
+from torchdyno.sequence import (
+    ClosedFormCell,
+    EulerCell,
+    Gate,
+    LeakyCell,
+    LeakyField,
+    LinearDiagonalCell,
+    OscillatorCell,
+    Recurrent,
+    RingDiagonal,
+    ZOHDiagonal,
 )
 
 

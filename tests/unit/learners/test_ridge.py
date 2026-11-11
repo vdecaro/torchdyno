@@ -3,7 +3,6 @@ import torch
 from torch import nn
 
 from tests.unit.compositions import reservoir
-from torchdyno.layers import Concat
 from torchdyno.learners import (
     RLS,
     Ridge,
@@ -13,11 +12,12 @@ from torchdyno.matrices import (
     Dense,
     Diagonal,
 )
-from torchdyno.metrics import Accuracy
-from torchdyno.pooling import (
+from torchdyno.objectives import Accuracy
+from torchdyno.readout import (
     Last,
     Mean,
 )
+from torchdyno.sequence import Concat
 
 DTYPE = torch.float64
 

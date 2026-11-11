@@ -9,7 +9,7 @@ from torchdyno.learners import (
     Ridge,
     evaluate,
 )
-from torchdyno.pooling import Last
+from torchdyno.readout import Last
 
 
 def _seen(parts, batches):

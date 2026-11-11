@@ -7,13 +7,13 @@ from tests.unit.compositions import (
     adadiag,
     reservoir,
 )
-from torchdyno.layers import (
-    Recurrent,
-    Stack,
-)
 from torchdyno.learners import (
     IntrinsicPlasticity,
     Ridge,
+)
+from torchdyno.sequence import (
+    Recurrent,
+    Stack,
 )
 
 DTYPE = torch.float64
