@@ -50,6 +50,27 @@ class NotTheLoop(Recurrent):
         return 2 * super().forward(x, h0)
 
 
+class MixesTheBatch(Cell):
+    """h' = h + W u + the batch mean of h: sequences leak into each other."""
+
+    def __init__(self):
+        super().__init__()
+        self.input = Dense(3, 3)
+        self.state_size = 3
+
+    def forward(self, u, h):
+        return h + self.input(u) + h.mean(0)
+
+
+class DropsOut(SumCell):
+    def __init__(self):
+        super().__init__()
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, u, h):
+        return self.dropout(super().forward(u, h))
+
+
 class DeadParameter(Recurrent):
     def __init__(self, cell):
         super().__init__(cell)
@@ -67,3 +88,20 @@ def test_accepts_a_plain_recurrent_layer():
 def test_rejects_a_broken_layer(layer_cls):
     with pytest.raises(AssertionError):
         assert_layer_conforms(layer_cls(SumCell()), torch.randn(6, 2, 3))
+
+
+def test_rejects_a_cell_that_mixes_the_batch():
+    with pytest.raises(AssertionError, match="independently"):
+        assert_layer_conforms(Recurrent(MixesTheBatch()), torch.randn(6, 2, 3))
+
+
+def test_checks_in_eval_mode_and_restores_the_mode():
+    layer = Recurrent(DropsOut()).train()
+    assert_layer_conforms(layer, torch.randn(6, 2, 3))
+    assert layer.training and layer.cell.dropout.training
+
+
+@pytest.mark.parametrize("shape", [(1, 2, 3), (6, 1, 3), (6, 3)])
+def test_needs_an_input_it_can_check_with(shape):
+    with pytest.raises(ValueError, match="T, B >= 2"):
+        assert_layer_conforms(Recurrent(SumCell()), torch.randn(shape))

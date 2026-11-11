@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 import torch
 from torch.testing import assert_close
 
+from torchdyno.learners.base import restore_modes
+
 if TYPE_CHECKING:
     from torch import Tensor
 
@@ -23,19 +25,31 @@ def assert_layer_conforms(layer: Recurrent, x: Tensor) -> Tensor:
     """Assert that ``layer`` runs its ``cell`` over ``x`` like the plain loop.
 
     Checks the shape and dtype, the match with a step-by-step loop over
-    ``layer.cell``, continuing from ``h0``, gradients reaching the input, and
-    every parameter that requires grad receiving a gradient.
+    ``layer.cell``, each sequence of the batch running independently,
+    continuing from ``h0``, gradients reaching the input, and every parameter
+    that requires grad receiving a gradient. The layer runs in eval mode, so
+    dropout does not make the runs differ, and is left in the modes it had.
 
     Args:
         layer: a :class:`~torchdyno.layers.Recurrent` layer or a subclass.
-        x: a ``(T, B, F)`` input, at least two timesteps long.
+        x: a ``(T, B, F)`` input with at least two timesteps and two sequences.
 
     Returns:
         ``layer(x)``, for further assertions.
 
     Raises:
+        ValueError: if ``x`` is too small to check with.
         AssertionError: if a check fails.
     """
+    if x.ndim != 3 or x.shape[0] < 2 or x.shape[1] < 2:  # noqa: PLR2004
+        raise ValueError(
+            f"Need a (T, B, F) input with T, B >= 2 to check, got {tuple(x.shape)}."
+        )
+    with restore_modes(layer):
+        return _check(layer.eval(), x)
+
+
+def _check(layer: Recurrent, x: Tensor) -> Tensor:
     cell = layer.cell
     out = layer(x)
     expected = (x.shape[0], x.shape[1], cell.state_size)
@@ -48,6 +62,11 @@ def assert_layer_conforms(layer: Recurrent, x: Tensor) -> Tensor:
         h = cell(u, h)
         loop.append(h)
     assert_close(out, torch.stack(loop), msg="output must match the loop over the cell")
+    assert_close(
+        layer(x[:, :1]),
+        out[:, :1],
+        msg="each sequence must run independently of the rest of the batch",
+    )
 
     half = x.shape[0] // 2
     assert_close(

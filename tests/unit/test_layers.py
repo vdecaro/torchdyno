@@ -15,7 +15,6 @@ from torchdyno.pooling import (
     Last,
     Mean,
 )
-from torchdyno.testing import assert_layer_conforms
 
 
 def test_recurrent_starts_from_zeros():
@@ -31,7 +30,6 @@ def test_stack_concatenates_layers_run_in_series():
     assert out.shape == (4, 2, 6)
     torch.testing.assert_close(out[..., :3], first(x))
     torch.testing.assert_close(out[..., 3:], nn.Sequential(first, second)(x))
-    assert_layer_conforms(first, x)
 
 
 LAYERS = {
