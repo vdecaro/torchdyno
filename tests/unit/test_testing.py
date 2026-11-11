@@ -2,13 +2,19 @@ import pytest
 import torch
 from torch import nn
 
-from tests.unit.compositions import COMPOSITIONS
+from tests.unit.compositions import (
+    COMPOSITIONS,
+    reservoir,
+)
 from torchdyno.matrices import Dense
 from torchdyno.sequence import (
     Cell,
     Recurrent,
 )
-from torchdyno.testing import assert_layer_conforms
+from torchdyno.testing import (
+    assert_layer_conforms,
+    echo_state_distance,
+)
 
 
 @pytest.mark.parametrize("frozen", [False, True])
@@ -107,3 +113,13 @@ def test_checks_in_eval_mode_and_restores_the_mode():
 def test_needs_an_input_it_can_check_with(shape):
     with pytest.raises(ValueError, match="T, B >= 2"):
         assert_layer_conforms(Recurrent(SumCell()), torch.randn(shape))
+
+
+def test_echo_state_distance_decays_only_with_the_echo_state_property():
+    torch.manual_seed(0)
+    x = torch.randn(200, 3, 1)
+    fading = echo_state_distance(reservoir(1, 32, leak=1.0, rho=0.5), x)
+    assert fading.shape == (200,)
+    assert fading[-1] < 1e-6 * fading[0]
+    chaotic = echo_state_distance(reservoir(1, 32, leak=1.0, rho=3.0), 1e-3 * x)
+    assert chaotic[-1] > 0.1 * chaotic[0]

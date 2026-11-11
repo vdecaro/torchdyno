@@ -1,9 +1,10 @@
-"""Conformance checks for layers that run a cell over time.
+"""Checks for layers that run a cell over time.
 
 ``assert_layer_conforms`` checks a layer such as
 :class:`~torchdyno.sequence.Recurrent` against the plain loop over its cell. Use it
 in the tests of a new cell or layer. It raises ``AssertionError`` and needs no
-test framework.
+test framework. ``echo_state_distance`` measures how fast a layer forgets where
+it started.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "assert_layer_conforms",
+    "echo_state_distance",
 ]
 
 
@@ -92,3 +94,28 @@ def _check(layer: Recurrent, x: Tensor) -> Tensor:
     unused = [n for (n, _), g in zip(trainable, grads[1:], strict=True) if g is None]
     assert not unused, f"trainable parameters receive no gradient: {unused}"
     return out
+
+
+@torch.no_grad()
+def echo_state_distance(layer: Recurrent, x: Tensor, scale: float = 1.0) -> Tensor:
+    """How far apart two runs of ``layer`` on ``x`` stay, from random starts.
+
+    With the echo state property the input washes the starting state out, so
+    the distance decays to zero; if it does not, the layer's output depends on
+    where it started, not only on its input. The starts are drawn from torch's
+    generator, and the layer runs in eval mode.
+
+    Args:
+        layer: a :class:`~torchdyno.sequence.Recurrent` layer or a subclass.
+        x: a ``(T, B, F)`` input.
+        scale: the standard deviation of the random starting states.
+
+    Returns:
+        The ``(T,)`` distance between the two runs' states at every timestep,
+        averaged over the batch.
+    """
+    shape = (x.shape[1], layer.cell.state_size)
+    starts = [scale * torch.randn(shape, dtype=x.dtype, device=x.device) for _ in "ab"]
+    with restore_modes(layer):
+        a, b = (layer.eval()(x, h0=start) for start in starts)
+    return (a - b).norm(dim=-1).mean(dim=1)
