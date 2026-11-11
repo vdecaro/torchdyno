@@ -41,7 +41,7 @@ An assembly of diagonal modules with an adaptive step, trained end to end:
 import torch
 from torch import nn
 
-from torchdyno.cells import EulerCell, Gate
+from torchdyno.cells import EulerCell, Gate, LeakyField
 from torchdyno.layers import Recurrent
 from torchdyno.learners import Backprop
 from torchdyno.matrices import Dense, Diagonal, SkewCoupling, normal
@@ -51,11 +51,13 @@ H = 16 * 8
 model = nn.Sequential(
     Recurrent(
         EulerCell(
-            recurrent=Diagonal(H, bound=torch.tanh),
-            coupling=SkewCoupling([16] * 8, pairs=8),
-            input=Dense(1, H, init=normal(H**-0.5)),
+            LeakyField(
+                recurrent=Diagonal(H, bound=torch.tanh),
+                coupling=SkewCoupling([16] * 8, pairs=8),
+                input=Dense(1, H, init=normal(H**-0.5)),
+                activation=torch.relu,
+            ),
             step=Gate(1, H, bounds=(1e-5, 0.2)),
-            activation=torch.relu,
         )
     ),
     Last(),

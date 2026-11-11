@@ -9,7 +9,7 @@ from torch import nn
 
 from examples.data import frequency_task
 from torchdyno import seed_all
-from torchdyno.cells import EulerCell
+from torchdyno.cells import EulerCell, LeakyField
 from torchdyno.layers import Recurrent
 from torchdyno.learners import Backprop, evaluate
 from torchdyno.matrices import BlockDiagonal, Dense, SkewCoupling, normal
@@ -22,15 +22,17 @@ H = 16 * 8
 scn = nn.Sequential(
     Recurrent(
         EulerCell(
-            recurrent=BlockDiagonal([16] * 8, bound=torch.tanh),
-            coupling=SkewCoupling([16] * 8, pairs="ring"),
-            input=Dense(1, H, init=normal(H**-0.5)),
+            LeakyField(
+                recurrent=BlockDiagonal([16] * 8, bound=torch.tanh),
+                coupling=SkewCoupling([16] * 8, pairs="ring"),
+                input=Dense(1, H, init=normal(H**-0.5)),
+            ),
             step=0.1,
         )
     ),
     Last(),
     nn.Linear(H, 3),
 )
-scn[0].cell.recurrent.requires_grad_(False)
+scn[0].cell.field.recurrent.requires_grad_(False)
 Backprop(nn.CrossEntropyLoss(), lr=1e-2, epochs=30).fit(scn, train)
 print(f"SCN test accuracy: {evaluate(scn, test, Accuracy()):.4f}")

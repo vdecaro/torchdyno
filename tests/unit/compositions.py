@@ -8,6 +8,7 @@ from torchdyno.cells import (
     EulerCell,
     Gate,
     LeakyCell,
+    LeakyField,
     LinearDiagonalCell,
     OscillatorCell,
     RingDiagonal,
@@ -29,11 +30,13 @@ def adadiag(features=2, blocks=(4, 4, 4), pairs=2, dtype=torch.float32):
     size = sum(blocks)
     return Recurrent(
         EulerCell(
-            recurrent=Diagonal(size, bound=torch.tanh, dtype=dtype),
-            coupling=SkewCoupling(list(blocks), pairs=pairs, dtype=dtype),
-            input=Dense(features, size, init=normal(size**-0.5), dtype=dtype),
+            LeakyField(
+                recurrent=Diagonal(size, bound=torch.tanh, dtype=dtype),
+                coupling=SkewCoupling(list(blocks), pairs=pairs, dtype=dtype),
+                input=Dense(features, size, init=normal(size**-0.5), dtype=dtype),
+                activation=torch.relu,
+            ),
             step=Gate(features, size, dtype=dtype),
-            activation=torch.relu,
         )
     )
 
@@ -42,9 +45,11 @@ def scn(features=2, blocks=(4, 4, 4), pairs="ring", step=0.1, dtype=torch.float3
     size = sum(blocks)
     return Recurrent(
         EulerCell(
-            recurrent=BlockDiagonal(list(blocks), bound=torch.tanh, dtype=dtype),
-            coupling=SkewCoupling(list(blocks), pairs=pairs, dtype=dtype),
-            input=Dense(features, size, init=normal(size**-0.5), dtype=dtype),
+            LeakyField(
+                recurrent=BlockDiagonal(list(blocks), bound=torch.tanh, dtype=dtype),
+                coupling=SkewCoupling(list(blocks), pairs=pairs, dtype=dtype),
+                input=Dense(features, size, init=normal(size**-0.5), dtype=dtype),
+            ),
             step=step,
         )
     )

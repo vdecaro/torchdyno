@@ -18,6 +18,7 @@ from torchdyno.cells import (
     EulerCell,
     Gate,
     LeakyCell,
+    LeakyField,
     LinearDiagonalCell,
     OscillatorCell,
     RingDiagonal,
@@ -28,6 +29,7 @@ from torchdyno.layers import (
     Stack,
 )
 from torchdyno.matrices import Dense
+from torchdyno.testing import assert_layer_conforms
 
 DTYPE = torch.float64
 
@@ -57,8 +59,9 @@ def test_adadiag():
     cell = layer.cell
     with torch.no_grad():
         cell.step.state.normal_()  # starts at zero; exercise the state term
-    beta, w_in, gate = cell.recurrent.weight, cell.input.weight, cell.step
-    coupling = _skew(cell.coupling)
+    field, gate = cell.field, cell.step
+    beta, w_in = field.recurrent.weight, field.input.weight
+    coupling = _skew(field.coupling)
 
     def step(u, v):
         logits = u @ gate.input.weight.T + gate.input.bias + gate.state * v
@@ -73,8 +76,9 @@ def test_scn():
     torch.manual_seed(0)
     layer = scn(step=0.1, dtype=DTYPE)
     cell = layer.cell
-    blocks = torch.tanh(cell.recurrent.mask * cell.recurrent.weight)
-    coupling, w_in = _skew(cell.coupling), cell.input.weight
+    field = cell.field
+    blocks = torch.tanh(field.recurrent.mask * field.recurrent.weight)
+    coupling, w_in = _skew(field.coupling), field.input.weight
 
     def step(u, v):
         drive = -v + torch.relu(v) @ blocks.T + v @ coupling.T + u @ w_in.T
@@ -129,10 +133,11 @@ def test_gain_and_bias_start_as_a_no_op():
 
 def test_euler_cell_without_coupling():
     torch.manual_seed(0)
-    cell = EulerCell(
-        input=Dense(2, 6, dtype=DTYPE), recurrent=Dense(6, 6, dtype=DTYPE), step=0.5
+    field = LeakyField(
+        input=Dense(2, 6, dtype=DTYPE), recurrent=Dense(6, 6, dtype=DTYPE)
     )
-    w_in, w = cell.input.weight, cell.recurrent.weight
+    cell = EulerCell(field, step=0.5)
+    w_in, w = field.input.weight, field.recurrent.weight
 
     def step(u, v):
         return v + 0.5 * (-v + torch.relu(v) @ w.T + u @ w_in.T)
@@ -187,11 +192,18 @@ def test_closed_form_cell_needs_a_positive_step():
         ClosedFormCell(nn.Identity(), nn.Linear(6, 16), dt=0.0)
 
 
+def _field():
+    return LeakyField(Dense(2, 4), Dense(4, 4))
+
+
 @pytest.mark.parametrize(
     ("make", "name"),
     [
         (lambda: LeakyCell(Dense(2, 4), Dense(4, 4), leak=torch.rand(4)), "leak"),
-        (lambda: EulerCell(Dense(2, 4), Dense(4, 4), step=torch.rand(4)), "step"),
+        (
+            lambda: EulerCell(_field(), step=torch.rand(4)),
+            "step",
+        ),
     ],
 )
 def test_tensor_hyperparameters_follow_the_cell(make, name):
@@ -202,13 +214,11 @@ def test_tensor_hyperparameters_follow_the_cell(make, name):
 
 
 MISMATCHED = {
-    "euler input": lambda: EulerCell(Dense(2, 3), Dense(4, 4)),
-    "euler recurrent": lambda: EulerCell(Dense(2, 4), Dense(3, 4)),
-    "euler coupling": lambda: EulerCell(Dense(2, 4), Dense(4, 4), Dense(4, 3)),
-    "euler gate": lambda: EulerCell(Dense(2, 4), Dense(4, 4), step=Gate(2, 1)),
-    "euler step tensor": lambda: EulerCell(
-        Dense(2, 4), Dense(4, 4), step=torch.ones(3)
-    ),
+    "field input": lambda: LeakyField(Dense(2, 3), Dense(4, 4)),
+    "field recurrent": lambda: LeakyField(Dense(2, 4), Dense(3, 4)),
+    "field coupling": lambda: LeakyField(Dense(2, 4), Dense(4, 4), Dense(4, 3)),
+    "euler gate": lambda: EulerCell(_field(), step=Gate(2, 1)),
+    "euler step tensor": lambda: EulerCell(_field(), step=torch.ones(3)),
     "leaky input": lambda: LeakyCell(Dense(2, 1), Dense(4, 4)),
     "leaky leak tensor": lambda: LeakyCell(
         Dense(2, 4), Dense(4, 4), leak=torch.ones(2)
@@ -230,9 +240,9 @@ def test_cells_reject_parts_that_do_not_match_the_state(make):
 
 OUT_OF_RANGE = {
     "gate bounds": lambda: Gate(2, 4, bounds=(0.2, 0.1)),
-    "euler step": lambda: EulerCell(Dense(2, 4), Dense(4, 4), step=0.0),
+    "euler step": lambda: EulerCell(_field(), step=0.0),
     "euler step tensor": lambda: EulerCell(
-        Dense(2, 4), Dense(4, 4), step=torch.tensor([0.1, 0.1, -0.1, 0.1])
+        _field(), step=torch.tensor([0.1, 0.1, -0.1, 0.1])
     ),
     "leak above one": lambda: LeakyCell(Dense(2, 4), Dense(4, 4), leak=1.5),
     "leak of zero": lambda: LeakyCell(Dense(2, 4), Dense(4, 4), leak=0.0),
@@ -262,4 +272,35 @@ def test_leaky_cell_takes_a_matrix_without_parameters():
 
 def test_scan_needs_a_linear_cell():
     with pytest.raises(TypeError, match="Scan needs a linear cell"):
-        Scan(EulerCell(Dense(2, 4), Dense(4, 4)))
+        Scan(EulerCell(_field()))
+
+
+def test_euler_integrates_any_field_with_any_step():
+    # an antisymmetric RNN: h' = h + eps tanh((W - W^T - gamma I) h + V u)
+    class Antisymmetric(nn.Module):
+        state_size = 4
+
+        def __init__(self):
+            super().__init__()
+            self.w, self.v = nn.Parameter(torch.randn(4, 4)), Dense(2, 4)
+
+        def forward(self, u, h):
+            w = self.w - self.w.T - 0.1 * torch.eye(4)
+            return torch.tanh(h @ w.T + self.v(u))
+
+    layer = Recurrent(EulerCell(Antisymmetric(), step=lambda u, h: 0.1 + 0 * h))
+    assert_layer_conforms(layer, torch.randn(6, 3, 2))
+
+
+def test_euler_needs_the_width_of_a_field_without_one():
+    with pytest.raises(ValueError, match="state_size"):
+        EulerCell(lambda u, h: -h)
+    assert EulerCell(lambda u, h: -h, state_size=3).state_size == 3
+
+
+def test_oscillator_and_closed_form_steps_follow_the_same_contract():
+    # per-unit tensors, and an elapsed time read from the input for irregular sampling
+    oscillator = OscillatorCell(Dense(2, 4), Dense(8, 4), gamma=torch.rand(4) + 0.5)
+    cfc = ClosedFormCell(nn.Identity(), Dense(6, 16), dt=lambda u, h: u[..., :1].exp())
+    for cell in (oscillator, cfc):
+        assert_layer_conforms(Recurrent(cell), torch.randn(6, 3, 2))

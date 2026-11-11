@@ -16,10 +16,14 @@ from torch import nn
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import TypeAlias
 
     from torch import Tensor
 
     from torchdyno.matrices import LinearMap
+
+    # a constant, a per-unit tensor, or computed from the input and the state
+    Step: TypeAlias = float | Tensor | Callable[[Tensor, Tensor], Tensor]
 
 __all__ = [
     "Cell",
@@ -27,6 +31,7 @@ __all__ = [
     "EulerCell",
     "Gate",
     "LeakyCell",
+    "LeakyField",
     "LinearDiagonalCell",
     "OscillatorCell",
     "RingDiagonal",
@@ -44,6 +49,25 @@ def _width(name: str, actual: int, expected: int) -> None:
     """Raise unless a part of a cell has the width the state needs."""
     if actual != expected:
         raise ValueError(f"{name} has width {actual}, but the state needs {expected}.")
+
+
+def _keep(module: nn.Module, name: str, value: Step) -> None:
+    """Keep a step-like ``value`` on ``module``: a tensor as a buffer.
+
+    A constant or a tensor must be positive; a callable ``value(u, h)`` is
+    computed at every timestep.
+    """
+    if not callable(value) and not torch.all(torch.as_tensor(value) > 0):
+        raise ValueError(f"{name} must be > 0, got {value}.")
+    if isinstance(value, torch.Tensor):
+        module.register_buffer(name, value)
+    else:
+        setattr(module, name, value)
+
+
+def _at(value: Step, u: Tensor, h: Tensor) -> float | Tensor:
+    """A step-like value at the current timestep."""
+    return value(u, h) if callable(value) else value
 
 
 class Gate(nn.Module):
@@ -93,78 +117,112 @@ class Gate(nn.Module):
         return self.lo + (self.hi - self.lo) * torch.sigmoid(logits)
 
 
-class EulerCell(Cell):
-    """One Euler step of a leaky ODE: ``v' = v + ε ⊙ (-v + W φ(v) + L v + B u)``.
+class LeakyField(nn.Module):
+    """A leaky ODE's vector field: ``f(u, v) = -v + W φ(v) + L v + B u``.
 
-    ``ε`` is a constant, a per-unit tensor, or a module such as :class:`Gate`
-    that computes it from the input and the state. With a block-diagonal ``W``
-    and a skew-symmetric ``L`` this is an assembly of coupled modules.
+    With a block-diagonal ``W`` and a skew-symmetric ``L``, an assembly of
+    coupled modules; integrate it with :class:`EulerCell`.
     """
-
-    step: float | Tensor | nn.Module
 
     def __init__(
         self,
         input: LinearMap,
         recurrent: LinearMap,
         coupling: LinearMap | None = None,
-        step: float | Tensor | nn.Module = 0.01,
         activation: Callable[[Tensor], Tensor] = torch.relu,
     ):
-        """Initializes the cell.
+        """Initializes the field.
 
         Args:
             input: the input matrix ``B``.
             recurrent: the matrix ``W`` applied to ``φ(v)``.
             coupling: an optional matrix ``L`` applied to ``v``.
-            step: the step size ``ε``: a constant, a tensor kept as a buffer,
-                or a module ``step(u, v) -> ε``.
             activation: the activation ``φ``.
 
         Raises:
-            ValueError: if a matrix or the step does not match the state, or a
-                constant step is not positive.
+            ValueError: if a matrix does not match the state.
         """
         super().__init__()
-        if not isinstance(step, nn.Module) and not torch.all(torch.as_tensor(step) > 0):
-            raise ValueError(f"step must be > 0, got {step}.")
         size = recurrent.out_features
         _width("recurrent.in_features", recurrent.in_features, size)
         _width("input.out_features", input.out_features, size)
         if coupling is not None:
             _width("coupling.in_features", coupling.in_features, size)
             _width("coupling.out_features", coupling.out_features, size)
-        step_width = getattr(step, "out_features", None)
-        if isinstance(step_width, int):
-            _width("step.out_features", step_width, size)
-        if isinstance(step, torch.Tensor) and step.numel() != 1:
-            _width("step", step.shape[-1], size)
         self.input = input
         self.recurrent = recurrent
         self.coupling = coupling
-        if isinstance(step, torch.Tensor):
-            self.register_buffer("step", step)
-        else:
-            self.step = step
         self.activation = activation
-        self.state_size = recurrent.out_features
+        self.state_size = size
 
     def forward(self, u: Tensor, v: Tensor) -> Tensor:
-        """Advance the state by one timestep.
+        """The time derivative of the state.
 
         Args:
             u: the input, shape ``(B, F)``.
             v: the state, shape ``(B, state_size)``.
 
         Returns:
-            The new state.
+            ``f(u, v)``, shape ``(B, state_size)``.
         """
         drive = -v + self.recurrent(self.activation(v))
         if self.coupling is not None:
             drive = drive + self.coupling(v)
-        drive = drive + self.input(u)
-        step = self.step(u, v) if isinstance(self.step, nn.Module) else self.step
-        return v + step * drive
+        return drive + self.input(u)
+
+
+class EulerCell(Cell):
+    """One explicit Euler step of an ODE: ``h' = h + ε ⊙ f(u, h)``.
+
+    ``f`` is any vector field, e.g. :class:`LeakyField` for an assembly of
+    coupled modules, or a module of one's own. ``ε`` is a constant, a per-unit
+    tensor, or computed from the input and the state, e.g. by a :class:`Gate`.
+    """
+
+    step: Step
+
+    def __init__(
+        self,
+        field: Callable[[Tensor, Tensor], Tensor],
+        step: Step = 0.01,
+        state_size: int | None = None,
+    ):
+        """Initializes the cell.
+
+        Args:
+            field: the vector field ``f(u, h)``.
+            step: the step size ``ε``: a constant, a tensor kept as a buffer, or
+                a callable ``step(u, h) -> ε``.
+            state_size: the state width; ``None`` takes ``field.state_size``.
+
+        Raises:
+            ValueError: if the state width is unknown, the step does not match
+                it, or a constant step is not positive.
+        """
+        super().__init__()
+        size = getattr(field, "state_size", None) if state_size is None else state_size
+        if not isinstance(size, int):
+            raise ValueError("Give state_size= for a field without a state_size.")
+        step_width = getattr(step, "out_features", None)
+        if isinstance(step_width, int):
+            _width("step.out_features", step_width, size)
+        if isinstance(step, torch.Tensor) and step.numel() != 1:
+            _width("step", step.shape[-1], size)
+        self.field = field
+        _keep(self, "step", step)
+        self.state_size = size
+
+    def forward(self, u: Tensor, h: Tensor) -> Tensor:
+        """Advance the state by one timestep.
+
+        Args:
+            u: the input, shape ``(B, F)``.
+            h: the state, shape ``(B, state_size)``.
+
+        Returns:
+            The new state.
+        """
+        return h + _at(self.step, u, h) * self.field(u, h)
 
 
 class LeakyCell(Cell):
@@ -255,16 +313,18 @@ class OscillatorCell(Cell):
 
     ``recurrent`` maps the whole state ``[y; z]`` to the positions, so
     ``W [y; z]`` is the paper's ``W y + W_z z`` as one product; ``input`` holds
-    ``V`` and the bias ``b``.
+    ``V`` and the bias ``b``. Each of ``dt``, ``gamma`` and ``epsilon`` is a
+    constant, a per-unit tensor kept as a buffer, or a callable ``(u, state)``
+    computed at every timestep.
     """
 
     def __init__(
         self,
         input: LinearMap,
         recurrent: LinearMap,
-        dt: float = 0.1,
-        gamma: float = 1.0,
-        epsilon: float = 1.0,
+        dt: Step = 0.1,
+        gamma: Step = 1.0,
+        epsilon: Step = 1.0,
         activation: Callable[[Tensor], Tensor] = torch.tanh,
     ):
         """Initializes the cell.
@@ -282,19 +342,15 @@ class OscillatorCell(Cell):
                 matrix does not match the state.
         """
         super().__init__()
-        if not all(value > 0 for value in (dt, gamma, epsilon)):
-            raise ValueError(
-                f"dt, gamma and epsilon must be > 0, got {dt}, {gamma}, {epsilon}."
-            )
         _width(
             "recurrent.in_features", recurrent.in_features, 2 * recurrent.out_features
         )
         _width("input.out_features", input.out_features, recurrent.out_features)
         self.input = input
         self.recurrent = recurrent
-        self.dt = dt
-        self.gamma = gamma
-        self.epsilon = epsilon
+        _keep(self, "dt", dt)
+        _keep(self, "gamma", gamma)
+        _keep(self, "epsilon", epsilon)
         self.activation = activation
         self.positions = recurrent.out_features
         self.state_size = 2 * self.positions
@@ -310,9 +366,12 @@ class OscillatorCell(Cell):
             The new state, in the same layout.
         """
         y, z = state[..., : self.positions], state[..., self.positions :]
+        dt, gamma, epsilon = (
+            _at(value, u, state) for value in (self.dt, self.gamma, self.epsilon)
+        )
         drive = self.activation(self.recurrent(state) + self.input(u))
-        z = z + self.dt * (drive - self.gamma * y - self.epsilon * z)
-        return torch.cat([y + self.dt * z, z], dim=-1)
+        z = z + dt * (drive - gamma * y - epsilon * z)
+        return torch.cat([y + dt * z, z], dim=-1)
 
 
 class ClosedFormCell(Cell):
@@ -326,7 +385,7 @@ class ClosedFormCell(Cell):
         h' = tanh(f_1) (1 - g) + tanh(f_2) g
     """
 
-    def __init__(self, backbone: nn.Module, heads: LinearMap, dt: float = 1.0):
+    def __init__(self, backbone: nn.Module, heads: LinearMap, dt: Step = 1.0):
         """Initializes the cell.
 
         Args:
@@ -334,22 +393,22 @@ class ClosedFormCell(Cell):
                 nn.Tanh)``, or ``nn.Identity()``.
             heads: the map from the backbone to ``[f_1; f_2; t_a; t_b]``; the
                 state size is a quarter of its output.
-            dt: the elapsed time per step.
+            dt: the elapsed time per step: a constant, a per-unit tensor, or a
+                callable ``dt(u, h)``, e.g. reading each sample's elapsed time
+                from an input channel for irregular sampling.
 
         Raises:
             ValueError: if ``dt`` is not positive, or ``heads`` does not output
                 four equal parts.
         """
         super().__init__()
-        if not dt > 0:
-            raise ValueError(f"dt must be > 0, got {dt}.")
         if heads.out_features % 4:
             raise ValueError(
                 f"heads must output four equal parts, got {heads.out_features}."
             )
         self.backbone = backbone
         self.heads = heads
-        self.dt = dt
+        _keep(self, "dt", dt)
         self.state_size = heads.out_features // 4
 
     def forward(self, u: Tensor, h: Tensor) -> Tensor:
@@ -365,7 +424,7 @@ class ClosedFormCell(Cell):
         f1, f2, t_a, t_b = self.heads(self.backbone(torch.cat([h, u], dim=-1))).chunk(
             4, -1
         )
-        gate = torch.sigmoid(t_a * self.dt + t_b)
+        gate = torch.sigmoid(t_a * _at(self.dt, u, h) + t_b)
         return torch.tanh(f1) * (1 - gate) + torch.tanh(f2) * gate
 
 

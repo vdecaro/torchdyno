@@ -67,7 +67,7 @@ def test_each_condition_trains_only_its_parts():
     assert changed(frozen) == {"2"}
     assert changed(trained) == {"0", "2"}
     assert torch.equal(
-        readout[1]["0.cell.input.weight"], trained[1]["0.cell.input.weight"]
+        readout[1]["0.cell.field.input.weight"], trained[1]["0.cell.field.input.weight"]
     )
 
 
