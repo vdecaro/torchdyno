@@ -33,6 +33,17 @@ if TYPE_CHECKING:
 
     Init = Callable[[Tensor], Tensor]
 
+__all__ = [
+    "BlockDiagonal",
+    "Dense",
+    "Diagonal",
+    "LinearMap",
+    "SkewCoupling",
+    "normal",
+    "spectral",
+    "uniform",
+]
+
 
 class LinearMap(Protocol):
     """A module that applies a linear map ``x Wᵀ``: what cells take as a matrix.

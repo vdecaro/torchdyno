@@ -20,6 +20,10 @@ if TYPE_CHECKING:
 
     from torchdyno.layers import Recurrent
 
+__all__ = [
+    "assert_layer_conforms",
+]
+
 
 def assert_layer_conforms(layer: Recurrent, x: Tensor) -> Tensor:
     """Assert that ``layer`` runs its ``cell`` over ``x`` like the plain loop.

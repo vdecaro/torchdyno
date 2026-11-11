@@ -20,6 +20,14 @@ if TYPE_CHECKING:
         LinearDiagonalCell,
     )
 
+__all__ = [
+    "Concat",
+    "RandomConv",
+    "Recurrent",
+    "Scan",
+    "Stack",
+]
+
 
 def _check(x: Tensor, h0: Tensor | None = None, state_size: int = 0) -> None:
     """Raise unless ``x`` is a ``(T, B, F)`` sequence and ``h0`` a ``(B, H)`` state."""

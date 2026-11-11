@@ -16,6 +16,13 @@ from torch import nn
 if TYPE_CHECKING:
     from torch import Tensor
 
+__all__ = [
+    "PPV",
+    "Last",
+    "Max",
+    "Mean",
+]
+
 
 class Last(nn.Module):
     """The last timestep."""
