@@ -17,7 +17,7 @@ from torchdyno.learners import IntrinsicPlasticity, Ridge, evaluate
 from torchdyno.matrices import Dense, spectral, uniform
 
 seed_all(0)
-data = lorenz_benchmark(length=4000, target_delay=5)
+data = lorenz_benchmark(length=4000, target_delay=5, washout=100)
 esn = nn.Sequential(
     Recurrent(
         LeakyCell(
@@ -34,6 +34,6 @@ IntrinsicPlasticity(lr=0.5, mu=0.0, sigma=0.2, epochs=10).fit(
 )
 
 for name, model in [("without", esn), ("with", adapted)]:
-    Ridge(l2=1e-6, washout=100).fit(model, data.train_loader)
-    nrmse = evaluate(model, data.eval_loader, data.task.primary, washout=100)
+    Ridge(l2=1e-6, washout=data.washout).fit(model, data.train_loader)
+    nrmse = evaluate(model, data.eval_loader, data.task.primary, washout=data.washout)
     print(f"{name} intrinsic plasticity: test NRMSE {nrmse:.2e}")

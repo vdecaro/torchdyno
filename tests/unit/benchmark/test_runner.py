@@ -63,3 +63,18 @@ def test_markdown_report():
     report = to_markdown(run(BenchmarkSpec(_dataset(), seeds=[0]), _build))
     assert report.startswith("# Benchmark: toy")
     assert "| nrmse |" in report
+
+
+def test_scores_after_the_dataset_washout():
+    class Unfitted:
+        def fit(self, model, train, val):
+            pass
+
+    data = _dataset()
+    data.washout = 5
+    model = nn.Sequential(nn.Linear(1, 1))
+    result = run(BenchmarkSpec(data, seeds=[0]), lambda task: (model, Unfitted()))
+    x, y = data.eval_loader[0]
+    with torch.no_grad():
+        expected = torch.mean((model(x)[5:] - y[5:]) ** 2).item()
+    assert result.per_seed[0]["mse"] == pytest.approx(expected)

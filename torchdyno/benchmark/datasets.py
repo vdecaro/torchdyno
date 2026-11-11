@@ -49,6 +49,7 @@ def lorenz_benchmark(
     length: int = 3000,
     target_delay: int = 1,
     splits: tuple[float, float] = (0.5, 0.25),
+    washout: int = 0,
 ) -> BenchmarkDataset:
     """Lorenz forecasting: predict the state ``target_delay`` steps ahead.
 
@@ -59,6 +60,7 @@ def lorenz_benchmark(
         length: number of integration steps.
         target_delay: how many steps ahead the target is.
         splits: the train and validation fractions; evaluation gets the rest.
+        washout: leading timesteps of each segment left unscored.
 
     Returns:
         The benchmark dataset.
@@ -74,4 +76,5 @@ def lorenz_benchmark(
         train_loader=train,
         eval_loader=test,
         val_loader=val,
+        washout=washout,
     )

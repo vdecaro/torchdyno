@@ -60,7 +60,8 @@ def run(
             validation loader, which may be ``None``.
 
     Returns:
-        The metrics on the evaluation loader, per seed and aggregated.
+        The metrics on the evaluation loader after the dataset's washout, per
+        seed and aggregated.
 
     Raises:
         ValueError: if ``spec.seeds`` is empty.
@@ -77,7 +78,9 @@ def run(
         start = time.perf_counter()
         learner.fit(model, data.train_loader, data.val_loader)
         wall_time += time.perf_counter() - start
-        per_seed.append(evaluate(model, data.eval_loader, data.task.metrics))
+        per_seed.append(
+            evaluate(model, data.eval_loader, data.task.metrics, data.washout)
+        )
 
     metrics = {name: _mean_std([d[name] for d in per_seed]) for name in per_seed[0]}
     return BenchmarkResult(

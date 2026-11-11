@@ -44,7 +44,6 @@ def run_conditions(
     lr: float,
     epochs: int,
     scheduler: Callable[[Optimizer], Any] | None = None,
-    washout: int = 0,
 ) -> dict[str, BenchmarkResult]:
     """Benchmark ``make_model`` under each condition on the same seeds.
 
@@ -56,13 +55,15 @@ def run_conditions(
         epochs: the epochs for both backprop conditions.
         scheduler: optional ``optimizer -> LRScheduler`` for both backprop
             conditions.
-        washout: leading timesteps ridge discards.
+
+    Every condition fits and scores after the dataset's washout.
 
     Returns:
         A result per condition, keyed by name.
     """
     # read before seeding, so peeking at a shuffled loader moves no seeded RNG
     width = next(iter(spec.dataset.train_loader))[0].shape[-1]
+    washout = spec.dataset.washout
 
     def build(condition: str) -> Callable[[Task], tuple[nn.Module, Any]]:
         def _build(task: Task) -> tuple[nn.Module, Any]:
@@ -75,7 +76,9 @@ def run_conditions(
                 )
             if condition == "frozen":
                 model = nn.Sequential(nn.Linear(width, width), *model)
-            return model, Backprop(task.loss, lr=lr, epochs=epochs, scheduler=scheduler)
+            return model, Backprop(
+                task.loss, lr=lr, epochs=epochs, scheduler=scheduler, washout=washout
+            )
 
         return _build
 

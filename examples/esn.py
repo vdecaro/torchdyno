@@ -15,7 +15,7 @@ from torchdyno.learners import Ridge, evaluate
 from torchdyno.matrices import Dense, spectral, uniform
 
 seed_all(0)
-data = lorenz_benchmark(length=4000, target_delay=5)
+data = lorenz_benchmark(length=4000, target_delay=5, washout=100)
 
 esn = nn.Sequential(
     Recurrent(
@@ -30,9 +30,9 @@ esn = nn.Sequential(
 )
 
 l2 = torch.logspace(-8, -2, 4).tolist()
-Ridge(l2, washout=100, score_fn=data.task.primary, mode="min").fit(
+Ridge(l2, washout=data.washout, score_fn=data.task.primary, mode="min").fit(
     esn, data.train_loader, data.val_loader
 )
 print(
-    f"ESN test NRMSE: {evaluate(esn, data.eval_loader, data.task.primary, washout=100):.2e}"
+    f"ESN test NRMSE: {evaluate(esn, data.eval_loader, data.task.primary, washout=data.washout):.2e}"
 )

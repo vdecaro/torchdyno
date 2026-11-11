@@ -26,6 +26,8 @@ class BenchmarkDataset:
         train_loader: the training batches.
         eval_loader: the batches every reported metric is computed on.
         val_loader: batches for selecting hyperparameters, or ``None``.
+        washout: leading timesteps of time-aligned predictions left unscored,
+            e.g. a reservoir's warm-up.
     """
 
     name: str
@@ -33,3 +35,4 @@ class BenchmarkDataset:
     train_loader: Iterable[tuple[Tensor, Tensor]]
     eval_loader: Iterable[tuple[Tensor, Tensor]]
     val_loader: Iterable[tuple[Tensor, Tensor]] | None = None
+    washout: int = 0

@@ -26,14 +26,14 @@ def reservoir(inputs, size):
 
 
 seed_all(0)
-data = lorenz_benchmark(length=4000, target_delay=5)
+data = lorenz_benchmark(length=4000, target_delay=5, washout=100)
 deep = nn.Sequential(
     Stack(reservoir(3, 200), reservoir(200, 200), reservoir(200, 200)).requires_grad_(
         False
     ),
     nn.Linear(600, 3),
 )
-Ridge(l2=1e-6, washout=100).fit(deep, data.train_loader)
+Ridge(l2=1e-6, washout=data.washout).fit(deep, data.train_loader)
 print(
-    f"deep ESN test NRMSE: {evaluate(deep, data.eval_loader, data.task.primary, washout=100):.2e}"
+    f"deep ESN test NRMSE: {evaluate(deep, data.eval_loader, data.task.primary, washout=data.washout):.2e}"
 )
