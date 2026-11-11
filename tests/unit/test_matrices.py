@@ -151,6 +151,14 @@ def test_complex_matrices_keep_both_parts_under_casts(make, cast):
     torch.testing.assert_close(out, expected, rtol=1e-6, atol=1e-6)
 
 
+def test_spectral_rejects_what_it_cannot_rescale():
+    with pytest.raises(ValueError, match="rho"):
+        spectral(uniform(1.0), 0.0)
+    delay_line = spectral(lambda w: w.copy_(torch.diag(torch.ones(3), -1)), 0.9)
+    with pytest.raises(ValueError, match="eigenvalue"):
+        delay_line(torch.empty(4, 4))
+
+
 def test_complex_initialisers_draw_both_parts():
     torch.manual_seed(0)
     weight = Dense(300, 300, init=normal(0.5), dtype=torch.cfloat).dense()

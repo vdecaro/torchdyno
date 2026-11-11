@@ -110,13 +110,25 @@ def spectral(init: Init, rho: float) -> Init:
         rho: the target spectral radius.
 
     Returns:
-        An in-place initialiser.
+        An in-place initialiser, which raises ``ValueError`` if ``init`` draws a
+        matrix whose eigenvalues are all zero, such as a delay line.
+
+    Raises:
+        ValueError: if ``rho`` is not positive.
     """
+    if not rho > 0:
+        raise ValueError(f"rho must be > 0, got {rho}.")
 
     def rescaled(tensor: Tensor) -> Tensor:
         init(tensor)
         with torch.no_grad():
-            return tensor.mul_(rho / torch.linalg.eigvals(tensor).abs().max())
+            radius = torch.linalg.eigvals(tensor).abs().max()
+            if radius == 0:
+                raise ValueError(
+                    "Every eigenvalue of the initial matrix is zero, so no scale "
+                    "gives it a spectral radius."
+                )
+            return tensor.mul_(rho / radius)
 
     return rescaled
 
