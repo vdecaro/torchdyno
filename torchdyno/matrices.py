@@ -62,6 +62,17 @@ def _parameter(value: Tensor) -> nn.Parameter:
     return nn.Parameter(_real(value).clone() if value.is_complex() else value)
 
 
+def _draw(init: Init, shape: tuple[int, ...], dtype: torch.dtype) -> Tensor:
+    """A tensor filled by ``init``, drawn in at least single precision.
+
+    Torch has no QR or eigenvalue kernels for half precision, which
+    ``torch.nn.init.orthogonal_`` and :func:`spectral` need.
+    """
+    tensor = torch.empty(shape, dtype=torch.promote_types(dtype, torch.float32))
+    init(tensor)
+    return tensor.to(dtype)
+
+
 def _value(stored: Tensor, is_complex: bool) -> Tensor:
     """The value a :func:`_parameter` stores."""
     return torch.view_as_complex(stored) if is_complex else stored
@@ -162,14 +173,13 @@ class Dense(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.is_complex = dtype.is_complex
-        weight = torch.empty(out_features, in_features, dtype=dtype)
-        (init or uniform(in_features**-0.5))(weight)
+        weight = _draw(
+            init or uniform(in_features**-0.5), (out_features, in_features), dtype
+        )
         self.weight = _parameter(weight)
         self.bias = None
         if bias is not None:
-            offset = torch.empty(out_features, dtype=dtype)
-            bias(offset)
-            self.bias = _parameter(offset)
+            self.bias = _parameter(_draw(bias, (out_features,), dtype))
 
     def forward(self, x: Tensor) -> Tensor:
         """Apply the matrix.
@@ -214,9 +224,7 @@ class Diagonal(nn.Module):
         super().__init__()
         self.in_features = self.out_features = size
         self.is_complex = dtype.is_complex
-        weight = torch.empty(size, dtype=dtype)
-        (init or uniform(1.0))(weight)
-        self.weight = _parameter(weight)
+        self.weight = _parameter(_draw(init or uniform(1.0), (size,), dtype))
         self.bound = bound
 
     def diagonal(self) -> Tensor:
@@ -273,8 +281,7 @@ class BlockDiagonal(nn.Module):
         weight = torch.zeros(size, size, dtype=dtype)
         start = 0
         for block in sizes:
-            entries = torch.empty(block, block, dtype=dtype)
-            (init or nn.init.orthogonal_)(entries)
+            entries = _draw(init or nn.init.orthogonal_, (block, block), dtype)
             weight[start : start + block, start : start + block] = entries
             start += block
         self.weight = nn.Parameter(weight)
@@ -340,8 +347,7 @@ class SkewCoupling(nn.Module):
         for i, j in _coupling_pairs(len(sizes), pairs):
             if i == j:
                 raise ValueError(f"A block cannot be coupled with itself: {i}.")
-            entries = torch.empty(sizes[i], sizes[j], dtype=dtype)
-            (init or nn.init.orthogonal_)(entries)
+            entries = _draw(init or nn.init.orthogonal_, (sizes[i], sizes[j]), dtype)
             row, col = (i, j) if i < j else (j, i)
             block = entries if i < j else entries.T
             weight[offsets[row] : offsets[row + 1], offsets[col] : offsets[col + 1]] = (

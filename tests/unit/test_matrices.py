@@ -170,6 +170,17 @@ def test_skew_coupling_draws_its_pairs_from_torch():
     assert torch.equal(*masks)
 
 
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_matrices_initialise_in_half_precision(dtype):
+    for matrix in (
+        Dense(3, 3, init=spectral(uniform(1.0), 0.9), dtype=dtype),
+        BlockDiagonal([3], dtype=dtype),
+        SkewCoupling([2, 1], pairs="ring", dtype=dtype),
+    ):
+        assert matrix.weight.dtype == dtype
+        assert matrix.dense().isfinite().all()
+
+
 def test_complex_initialisers_draw_both_parts():
     torch.manual_seed(0)
     weight = Dense(300, 300, init=normal(0.5), dtype=torch.cfloat).dense()
