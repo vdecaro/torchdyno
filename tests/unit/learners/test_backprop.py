@@ -113,8 +113,17 @@ def test_leaves_the_washout_out_of_the_loss_and_the_validation_score():
         loss_fn, epochs=1, score_fn=lambda p, t: float(len(p)), washout=3
     )
     result = trainer.fit(nn.Sequential(nn.Linear(2, 2)), data, data)
-    assert seen == [7]
-    assert result.history["val_score"] == [7.0 * 4]  # one row per kept timestep
+    assert seen == [7 * 4]  # one row per kept timestep
+    assert result.history["val_score"] == [7.0 * 4]
+
+
+def test_leaves_absent_steps_out_of_the_loss():
+    x, y = torch.randn(10, 4, 2), torch.randn(10, 4, 2)
+    x[6:, 0] = torch.nan  # the first sequence is shorter
+    result = Backprop(nn.MSELoss(), epochs=1).fit(
+        nn.Sequential(nn.Linear(2, 2)), [(x, y)]
+    )
+    assert torch.isfinite(torch.tensor(result.history["train_loss"])).all()
 
 
 def test_clips_the_gradient_norm():

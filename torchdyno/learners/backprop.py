@@ -12,6 +12,7 @@ import torch
 
 from torchdyno.learners.protocol import FitResult
 from torchdyno.learners.scoring import (
+    _present,
     drop_washout,
     evaluate,
     restore_modes,
@@ -72,7 +73,8 @@ class Backprop:
 
         Args:
             loss_fn: ``loss_fn(prediction, target) -> Tensor`` (e.g.
-                ``nn.CrossEntropyLoss()`` or ``nn.MSELoss()``).
+                ``nn.CrossEntropyLoss()`` or ``nn.MSELoss()``); time-aligned
+                predictions come as ``(n, O)`` rows of the steps that exist.
             optimizer: ``"adam"``/``"sgd"``, or a callable that builds the
                 optimizer from the ``(name, parameter)`` pairs that require grad,
                 so it can group them by name, e.g. without weight decay on the
@@ -182,7 +184,10 @@ class Backprop:
         total, n = 0.0, 0
         for x, y in train:
             opt.zero_grad()
-            loss = self.loss_fn(*drop_washout(model(x), y, self.washout))
+            out, target = drop_washout(model(x), y, self.washout)
+            if out.ndim == 3:  # noqa: PLR2004 time-aligned: rows, as evaluate scores
+                out, target = _present(out.flatten(0, 1), target.flatten(0, 1))
+            loss = self.loss_fn(out, target)
             loss.backward()
             if self.clip is not None:
                 params = [p for group in opt.param_groups for p in group["params"]]
