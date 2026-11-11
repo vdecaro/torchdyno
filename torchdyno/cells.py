@@ -409,8 +409,11 @@ class RingDiagonal(nn.Module):
         self.nu = nn.Parameter(torch.log(-0.5 * torch.log(magnitude_sq)).to(dtype))
         self.theta = nn.Parameter(max_phase * torch.rand(size, dtype=dtype))
 
-    def forward(self) -> tuple[Tensor, Tensor]:
+    def forward(self, u: Tensor | None = None) -> tuple[Tensor, Tensor]:  # noqa: ARG002
         """The multiplier and the input scale.
+
+        Args:
+            u: the input; unused, as the transition does not depend on it.
 
         Returns:
             ``(λ, sqrt(1 - |λ|²))``, each of shape ``(size,)``.
@@ -454,8 +457,11 @@ class ZOHDiagonal(nn.Module):
         low, high = math.log(dt_min), math.log(dt_max)
         self.log_dt = nn.Parameter(low + torch.rand(size, dtype=dtype) * (high - low))
 
-    def forward(self) -> tuple[Tensor, Tensor]:
+    def forward(self, u: Tensor | None = None) -> tuple[Tensor, Tensor]:  # noqa: ARG002
         """The multiplier and the input scale.
+
+        Args:
+            u: the input; unused, as the transition does not depend on it.
 
         Returns:
             ``(Ā, (Ā - 1) / A)`` with ``Ā = exp(ΔA)``, each of shape ``(size,)``.
@@ -469,34 +475,42 @@ class ZOHDiagonal(nn.Module):
 
 
 class LinearDiagonalCell(Cell):
-    """A linear recurrence on a complex diagonal: ``h' = a ⊙ h + s ⊙ (B u)``.
+    """A linear recurrence on a diagonal: ``h' = a ⊙ h + s ⊙ (B u)``.
 
-    ``transition()`` gives ``(a, s)``, e.g. :class:`RingDiagonal` (LRU) or
-    :class:`ZOHDiagonal` (S4D), and ``input`` is a complex ``B``, e.g. a complex
-    :class:`~torchdyno.matrices.Dense`. The state is stored as the real
-    ``[Re h; Im h]``, so ``state_size`` is twice the number of modes. Because the
-    recurrence is linear, :class:`~torchdyno.layers.Scan` can run it in parallel
-    over time.
+    ``transition(u)`` gives ``(a, s)``, broadcastable to ``u.shape[:-1] +
+    (modes,)``: constant, as :class:`RingDiagonal` (LRU) and
+    :class:`ZOHDiagonal` (S4D) are, or computed from the input, as a selective
+    step is. ``input`` is ``B``. If ``a``, ``s`` or ``B u`` is complex, the
+    state is stored as the real ``[Re h; Im h]`` and ``state_size`` is twice
+    the number of modes; otherwise it is ``h`` itself. Because the recurrence
+    is linear, :class:`~torchdyno.layers.Scan` can run it in parallel over
+    time.
     """
 
     def __init__(self, transition: nn.Module, input: LinearMap):
         """Initializes the cell.
 
         Args:
-            transition: a module whose ``forward()`` returns ``(a, s)``.
-            input: the complex input matrix ``B``.
+            transition: a module whose ``forward(u)`` returns ``(a, s)``.
+            input: the input matrix ``B``.
 
         Raises:
             ValueError: if the transition has another number of modes than the
                 input matrix.
         """
         super().__init__()
-        with torch.no_grad():
-            _width("transition", transition()[0].shape[-1], input.out_features)
         self.transition = transition
         self.input = input
         self.modes = input.out_features
-        self.state_size = 2 * self.modes
+        weight = next(input.parameters(), None)
+        dtype = torch.get_default_dtype() if weight is None else weight.dtype
+        with torch.no_grad():
+            probe = torch.zeros(1, input.in_features, dtype=dtype)
+            a, s = transition(probe)
+            _width("transition", a.shape[-1], self.modes)
+            parts = (a, s, input(probe))
+        self.is_complex = any(part.is_complex() for part in parts)
+        self.state_size = 2 * self.modes if self.is_complex else self.modes
 
     def coefficients(self, u: Tensor) -> tuple[Tensor, Tensor]:
         """The multiplier and the addend of the recurrence for input ``u``.
@@ -505,22 +519,31 @@ class LinearDiagonalCell(Cell):
             u: the input, with ``F`` as the last dimension.
 
         Returns:
-            ``(a, s ⊙ B u)``: ``a`` of shape ``(modes,)``, the addend of shape
+            ``(a, s ⊙ B u)``: ``a`` broadcastable to the addend, which has shape
             ``u.shape[:-1] + (modes,)``.
         """
-        a, s = self.transition()
+        a, s = self.transition(u)
         return a, s * self.input(u)
+
+    def unpack(self, state: Tensor) -> Tensor:
+        """The state ``h`` from its stored form."""
+        if not self.is_complex:
+            return state
+        return torch.complex(state[..., : self.modes], state[..., self.modes :])
+
+    def pack(self, h: Tensor) -> Tensor:
+        """The stored form of the state ``h``."""
+        return torch.cat([h.real, h.imag], dim=-1) if self.is_complex else h
 
     def forward(self, u: Tensor, state: Tensor) -> Tensor:
         """Advance the state by one timestep.
 
         Args:
             u: the input, shape ``(B, F)``.
-            state: ``[Re h; Im h]``, shape ``(B, state_size)``.
+            state: the stored state, shape ``(B, state_size)``.
 
         Returns:
             The new state, in the same layout.
         """
         a, b = self.coefficients(u)
-        h = a * torch.complex(state[..., : self.modes], state[..., self.modes :]) + b
-        return torch.cat([h.real, h.imag], dim=-1)
+        return self.pack(a * self.unpack(state) + b)

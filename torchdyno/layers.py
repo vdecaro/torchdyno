@@ -147,12 +147,11 @@ class Scan(Recurrent):
         """
         h0 = self._start(x, h0)
         a, b = self.cell.coefficients(x)
+        a, b = torch.broadcast_tensors(a, b)
         if h0 is not None:
-            modes = self.cell.modes
-            first = b[0] + a * torch.complex(h0[..., :modes], h0[..., modes:])
+            first = b[0] + a[0] * self.cell.unpack(h0)
             b = torch.cat([first.unsqueeze(0), b[1:]])
-        h = _scan(a.expand_as(b), b)
-        return self._carry(torch.cat([h.real, h.imag], dim=-1))
+        return self._carry(self.cell.pack(_scan(a, b)))
 
 
 def _scan(a: Tensor, b: Tensor) -> Tensor:

@@ -4,15 +4,24 @@ import math
 
 import pytest
 import torch
+import torch.nn.functional as F
+from torch import nn
 
 from tests.unit.compositions import (
     lru,
     s4d,
 )
 from torchdyno.cells import (
+    LinearDiagonalCell,
     RingDiagonal,
     ZOHDiagonal,
 )
+from torchdyno.layers import (
+    Recurrent,
+    Scan,
+)
+from torchdyno.matrices import Dense
+from torchdyno.testing import assert_layer_conforms
 
 DTYPE = torch.float64
 
@@ -104,3 +113,36 @@ def test_zero_order_hold_keeps_its_scale_as_a_vanishes():
         zoh.imag.zero_()
     _, scale = zoh()
     torch.testing.assert_close(scale, torch.full((3,), 1e-2, dtype=scale.dtype))
+
+
+class RealDiagonal(nn.Module):
+    """A real, input-independent transition: a = sigmoid(w), s = 1 - a."""
+
+    def __init__(self, size):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(size, dtype=DTYPE))
+
+    def forward(self, u=None):  # noqa: ARG002
+        a = torch.sigmoid(self.weight)
+        return a, 1 - a
+
+
+class Selective(nn.Module):
+    """An input-dependent step, as in selective state spaces."""
+
+    def __init__(self, features, size):
+        super().__init__()
+        self.step = nn.Linear(features, size, dtype=DTYPE)
+
+    def forward(self, u):
+        a = torch.exp(-F.softplus(self.step(u)))
+        return a, 1 - a
+
+
+@pytest.mark.parametrize("make", [lambda: RealDiagonal(5), lambda: Selective(2, 5)])
+@pytest.mark.parametrize("layer", [Recurrent, Scan])
+def test_real_and_input_dependent_transitions_run_in_both_layers(make, layer):
+    torch.manual_seed(0)
+    cell = LinearDiagonalCell(make(), Dense(2, 5, dtype=DTYPE))
+    assert cell.state_size == 5
+    assert_layer_conforms(layer(cell), torch.randn(9, 3, 2, dtype=DTYPE))
