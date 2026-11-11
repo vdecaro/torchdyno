@@ -2,11 +2,17 @@ import pytest
 import torch
 
 from torchdyno.objectives import (
+    F1,
     MSE,
     NRMSE,
     Accuracy,
+    BalancedAccuracy,
+    ConfusionMatrix,
+    MemoryCapacity,
     Regression,
     SequenceClassification,
+    Task,
+    TimestepClassification,
 )
 
 
@@ -66,3 +72,55 @@ def test_accuracy_rejects_predictions_without_a_class_dimension():
 def test_rejects_unknown_primary():
     with pytest.raises(ValueError, match="Unknown primary"):
         Regression(primary="mae")
+
+
+def _logits(labels, classes=3):
+    return torch.nn.functional.one_hot(torch.tensor(labels), classes).float()
+
+
+def test_class_balanced_metrics_from_the_confusion_matrix():
+    target = torch.tensor([0, 0, 0, 0, 1, 1, 2, 2])
+    pred = _logits([0, 0, 0, 1, 1, 0, 2, 0])
+    confusion = ConfusionMatrix()(pred, target)
+    assert confusion.tolist() == [[3, 1, 0], [1, 1, 0], [1, 0, 1]]
+    assert Accuracy()(pred, target) == pytest.approx(5 / 8)
+    assert BalancedAccuracy()(pred, target) == pytest.approx(
+        (3 / 4 + 1 / 2 + 1 / 2) / 3
+    )
+    f1 = [2 * 3 / (2 * 3 + 2 + 1), 2 * 1 / (2 * 1 + 1 + 1), 2 * 1 / (2 * 1 + 0 + 1)]
+    assert F1()(pred, target) == pytest.approx(sum(f1) / 3)
+    constant = _logits([0] * 8)
+    assert BalancedAccuracy()(constant, target) == pytest.approx(1 / 3)
+    with pytest.raises(ValueError, match="class dimension"):
+        F1()(pred, target[:, None])
+
+
+def test_memory_capacity_sums_squared_correlations():
+    torch.manual_seed(0)
+    target = torch.randn(200, 3)
+    pred = torch.stack([2 * target[:, 0] + 1, -target[:, 1], torch.zeros(200)], -1)
+    assert MemoryCapacity()(pred, target) == pytest.approx(2.0)
+    assert MemoryCapacity.mode == "max"
+
+
+def test_tasks_take_their_loss_and_metrics_without_subclassing():
+    task = Task(
+        {"f1": F1(), "accuracy": Accuracy()},
+        "f1",
+        loss=torch.nn.functional.cross_entropy,
+    )
+    pred, target = _logits([0, 1, 2, 1]), torch.tensor([0, 1, 2, 2])
+    assert task.primary is task._metrics["f1"]
+    assert task.loss(pred, target) == torch.nn.functional.cross_entropy(pred, target)
+    with pytest.raises(NotImplementedError, match="loss="):
+        Task({"f1": F1()}, "f1").loss(pred, target)
+
+
+def test_timestep_classification_scores_every_step():
+    task = TimestepClassification()
+    pred, target = torch.randn(5, 2, 3), torch.randint(3, (5, 2))
+    flat = torch.nn.functional.cross_entropy(pred.flatten(0, 1), target.flatten())
+    assert task.loss(pred, target) == flat
+    assert task.metrics(pred, target)["accuracy"] == Accuracy()(
+        pred.flatten(0, 1), target.flatten()
+    )

@@ -10,20 +10,30 @@ from .base import (
 )
 from .classification import (
     Accuracy,
+    BalancedAccuracy,
+    ConfusionMatrix,
+    F1,
     SequenceClassification,
+    TimestepClassification,
 )
 from .regression import (
     MSE,
     NRMSE,
+    MemoryCapacity,
     Regression,
 )
 
 __all__ = [
+    "F1",
     "MSE",
     "NRMSE",
     "Accuracy",
+    "BalancedAccuracy",
+    "ConfusionMatrix",
+    "MemoryCapacity",
     "Metric",
     "Regression",
     "SequenceClassification",
     "Task",
+    "TimestepClassification",
 ]

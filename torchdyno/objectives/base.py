@@ -12,6 +12,8 @@ from typing import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from torch import Tensor
 
 
@@ -58,20 +60,28 @@ def require_same_shape(pred: Tensor, target: Tensor) -> None:
         )
 
 
-class Task(ABC):
+class Task:
     """Bundles a task's loss and metrics.
 
     A trainer uses ``loss``, a solver selecting on validation uses ``primary``
     (a :class:`Metric`, hence a score with a ``mode``), and reports use every
-    metric in ``metrics``.
+    metric in ``metrics``. Build one directly, e.g. ``Task({"f1": F1(),
+    "accuracy": Accuracy()}, "f1", loss=F.cross_entropy)``, or subclass it and
+    override :meth:`loss`.
     """
 
-    def __init__(self, metrics: dict[str, Metric], primary: str):
+    def __init__(
+        self,
+        metrics: dict[str, Metric],
+        primary: str,
+        loss: Callable[[Tensor, Tensor], Tensor] | None = None,
+    ):
         """Initializes the task.
 
         Args:
             metrics: the metrics to report, by name.
             primary: the name of the metric that selects on validation.
+            loss: ``loss(pred, target) -> Tensor``, the training objective.
 
         Raises:
             ValueError: if ``primary`` is not in ``metrics``.
@@ -82,8 +92,8 @@ class Task(ABC):
             )
         self._metrics = metrics
         self.primary = metrics[primary]
+        self._loss = loss
 
-    @abstractmethod
     def loss(self, pred: Tensor, target: Tensor) -> Tensor:
         """The differentiable training objective.
 
@@ -93,8 +103,13 @@ class Task(ABC):
 
         Returns:
             The scalar loss.
+
+        Raises:
+            NotImplementedError: if the task was built without ``loss``.
         """
-        raise NotImplementedError
+        if self._loss is None:
+            raise NotImplementedError("Pass loss= to the task, or override loss().")
+        return self._loss(pred, target)
 
     def metrics(self, pred: Tensor, target: Tensor) -> dict[str, float]:
         """Every metric of the task.

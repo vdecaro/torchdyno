@@ -76,6 +76,39 @@ class NRMSE(Metric):
         return torch.sqrt(mse / (var + self.eps)).mean().item()
 
 
+class MemoryCapacity(Metric):
+    """Jaeger's memory capacity: ``Σ_k r²(ŷ_k, y_k)`` over the outputs.
+
+    Output ``k`` recalls the input ``k`` steps back, as in
+    :func:`~torchdyno.benchmark.memory_capacity_benchmark`; each adds its
+    squared correlation with its target, so ``K`` outputs score at most ``K``.
+    """
+
+    mode = "max"
+
+    def __call__(self, pred: Tensor, target: Tensor) -> float:
+        """Score ``pred`` against ``target``.
+
+        Args:
+            pred: the predictions, one output per delay in the last dimension.
+            target: the delayed inputs, same shape as ``pred``.
+
+        Returns:
+            The sum of the squared correlations; a constant output adds zero.
+
+        Raises:
+            ValueError: if the shapes differ.
+        """
+        require_same_shape(pred, target)
+        if target.ndim == 1:
+            pred, target = pred[:, None], target[:, None]
+        pred, target = pred.flatten(0, -2).double(), target.flatten(0, -2).double()
+        pred, target = pred - pred.mean(0), target - target.mean(0)
+        covariance = (pred * target).sum(0)
+        r2 = covariance**2 / ((pred**2).sum(0) * (target**2).sum(0))
+        return r2.nan_to_num(0.0).sum().item()
+
+
 class Regression(Task):
     """Point regression on time-aligned ``(T, B, O)`` targets."""
 
