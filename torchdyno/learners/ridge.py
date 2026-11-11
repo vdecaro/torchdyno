@@ -1,4 +1,4 @@
-"""Ridge: fit the final linear readout of a model in closed form."""
+"""Ridge: fit a linear readout of a model in closed form."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from typing import (
 )
 
 import torch
-from torch import nn
 
 from torchdyno.learners.base import (
     FitResult,
     evaluate,
     feature_rows,
+    find_readout,
 )
 from torchdyno.reproducibility import get_rng_state
 
@@ -24,16 +24,24 @@ if TYPE_CHECKING:
         Sequence,
     )
 
-    from torch import Tensor
+    from torch import (
+        Tensor,
+        nn,
+    )
+
+    from torchdyno.matrices import Dense
 
 
 class Ridge:
-    """Fit ``model[-1]``, an ``nn.Linear``, on the features of ``model[:-1]``.
+    """Fit a linear readout on whatever reaches it, in closed form.
 
-    Time-aligned ``(T, B, H)`` features are fitted at every timestep, pooled
-    ``(B, H)`` ones once per sequence; integer targets become one-hot. Everything
-    before the readout is left untouched. The sums are kept in float64, and when
-    there are fewer samples than features the solve uses the dual form.
+    The readout is ``model[-1]`` by default, or the real ``nn.Linear`` or
+    :class:`~torchdyno.matrices.Dense` that ``readout`` names, wherever it sits:
+    a readout in the middle of a model is fitted on its own input, against
+    targets for its own output. Time-aligned ``(T, B, H)`` features are fitted
+    at every timestep, pooled ``(B, H)`` ones once per sequence; integer targets
+    become one-hot. Only the readout changes. The sums are kept in float64, and
+    when there are fewer samples than features the solve uses the dual form.
     """
 
     def __init__(
@@ -43,6 +51,7 @@ class Ridge:
         standardize: bool = False,
         score_fn: Callable[[Tensor, Tensor], float] | None = None,
         mode: Literal["min", "max"] | None = None,
+        readout: str | None = None,
     ):
         """Initializes the learner.
 
@@ -58,6 +67,8 @@ class Ridge:
             mode: ``"min"`` or ``"max"``: whether the best score is smallest or
                 largest; ``None`` takes ``score_fn.mode``, as a
                 :class:`~torchdyno.metrics.Metric` has.
+            readout: the readout's name in the model, as
+                ``model.get_submodule`` takes it; ``None`` takes ``model[-1]``.
 
         Raises:
             ValueError: if there is no ``l2`` value, one is negative, or ``mode``
@@ -75,6 +86,7 @@ class Ridge:
         self.standardize = standardize
         self.score_fn = score_fn
         self.mode = mode
+        self.readout = readout
 
     def fit(
         self,
@@ -87,7 +99,7 @@ class Ridge:
         The readout gets an intercept if it has a bias.
 
         Args:
-            model: the model whose last module is set in place.
+            model: the model whose readout is set in place.
             train: batches of time-first ``(x, y)``; ``y`` is ``(T, B, O)``
                 for time-aligned features or ``(B, O)`` / ``(B,)`` class
                 indices for pooled ones.
@@ -97,13 +109,11 @@ class Ridge:
             The chosen ``l2`` (and its score when selecting) and the RNG state.
 
         Raises:
-            TypeError: if the last module is not an ``nn.Linear``.
+            TypeError: if the readout is not a real ``nn.Linear`` or ``Dense``.
             ValueError: if several ``l2`` values are given without ``val``,
                 ``score_fn`` and a ``mode``.
         """
-        readout = model[-1]
-        if not isinstance(readout, nn.Linear):
-            raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
+        readout = find_readout(model, self.readout)
         rng = get_rng_state()
         candidates = self.l2
         if len(candidates) > 1 and (
@@ -130,8 +140,8 @@ class Ridge:
 
     def _solver(
         self,
-        model: nn.Sequential,
-        readout: nn.Linear,
+        model: nn.Module,
+        readout: nn.Linear | Dense,
         loader: Iterable[tuple[Tensor, Tensor]],
     ) -> Callable[[float], tuple[Tensor, Tensor]]:
         """Accumulate the data once; return ``l2 -> (weight, bias)``."""
@@ -140,7 +150,7 @@ class Ridge:
         gram = cross = sum_x = sum_y = None
         n = 0
         for x, y in loader:
-            f, t = feature_rows(model, x, y, self.washout)
+            f, t = feature_rows(model, readout, x, y, self.washout)
             n += f.shape[0]
             if gram is None:
                 xs.append(f)
@@ -209,7 +219,7 @@ def _unscale(
     return weight.T, bias
 
 
-def _set(readout: nn.Linear, weight: Tensor, bias: Tensor) -> None:
+def _set(readout: nn.Linear | Dense, weight: Tensor, bias: Tensor) -> None:
     with torch.no_grad():
         readout.weight.copy_(weight)
         if readout.bias is not None:

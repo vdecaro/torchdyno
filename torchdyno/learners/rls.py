@@ -1,26 +1,31 @@
-"""RLS: fit the final linear readout online, by recursive least squares."""
+"""RLS: fit a linear readout online, by recursive least squares."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import torch
-from torch import nn
 
 from torchdyno.learners.base import (
     FitResult,
     feature_rows,
+    find_readout,
 )
 from torchdyno.reproducibility import get_rng_state
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from torch import Tensor
+    from torch import (
+        Tensor,
+        nn,
+    )
 
 
 class RLS:
-    """Fit ``model[-1]``, an ``nn.Linear``, one sample at a time.
+    """Fit a linear readout on whatever reaches it, one sample at a time.
+
+    The readout is chosen as for :class:`~torchdyno.learners.Ridge`.
 
     Rows are visited in order: every timestep of every sequence for
     time-aligned features, one row per sequence for pooled ones. Starting from
@@ -30,13 +35,15 @@ class RLS:
     ``O(H²)``.
     """
 
-    def __init__(self, l2: float = 1.0, washout: int = 0):
+    def __init__(self, l2: float = 1.0, washout: int = 0, readout: str | None = None):
         """Initializes the learner.
 
         Args:
             l2: the initial ``P = I / l2``, i.e. the ridge penalty.
             washout: leading timesteps to discard; only for time-aligned
                 features.
+            readout: the readout's name in the model, as
+                ``model.get_submodule`` takes it; ``None`` takes ``model[-1]``.
 
         Raises:
             ValueError: if ``l2`` is not positive.
@@ -45,6 +52,7 @@ class RLS:
             raise ValueError(f"l2 must be > 0, got {l2}.")
         self.l2 = l2
         self.washout = washout
+        self.readout = readout
 
     def fit(
         self,
@@ -55,7 +63,7 @@ class RLS:
         """Update the readout over every row of ``train``.
 
         Args:
-            model: the model whose last module is set in place.
+            model: the model whose readout is set in place.
             train: batches of time-first ``(x, y)``, as for
                 :class:`~torchdyno.learners.Ridge`.
             val: unused; accepted so every learner fits the same way.
@@ -64,12 +72,10 @@ class RLS:
             The RNG state at the start.
 
         Raises:
-            TypeError: if the last module is not an ``nn.Linear``.
+            TypeError: if the readout is not a real ``nn.Linear`` or ``Dense``.
             ValueError: if ``train`` has no samples.
         """
-        readout = model[-1]
-        if not isinstance(readout, nn.Linear):
-            raise TypeError(f"The last module must be nn.Linear, not {type(readout)}.")
+        readout = find_readout(model, self.readout)
         rng = get_rng_state()
         bias = readout.bias is not None
         size = readout.in_features + bias
@@ -78,7 +84,7 @@ class RLS:
         w = torch.zeros(size, readout.out_features, dtype=torch.float64, device=device)
         seen = 0
         for x, y in train:
-            rows, targets = feature_rows(model, x, y, self.washout)
+            rows, targets = feature_rows(model, readout, x, y, self.washout)
             seen += len(rows)
             if bias:
                 rows = torch.cat([rows, rows.new_ones(len(rows), 1)], dim=1)

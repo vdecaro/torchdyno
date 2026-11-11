@@ -3,9 +3,15 @@ import torch
 from torch import nn
 
 from tests.unit.compositions import reservoir
+from torchdyno.layers import Concat
 from torchdyno.learners import (
     RLS,
     Ridge,
+)
+from torchdyno.matrices import (
+    BlockDiagonal,
+    Dense,
+    Diagonal,
 )
 from torchdyno.metrics import Accuracy
 from torchdyno.pooling import (
@@ -136,6 +142,55 @@ def test_solves_on_the_device_of_the_features(learner, n):
     with torch.device("meta"):  # where tensors made without a device would land
         learner.fit(model, [(x, y)])
     assert model[-1].weight.isfinite().all()
+
+
+@pytest.mark.parametrize("learner", [Ridge(1e-2, readout="1"), RLS(1e-2, readout="1")])
+def test_fits_a_readout_in_the_middle_on_its_own_input(learner):
+    torch.manual_seed(0)
+    x = torch.randn(40, 4, dtype=DTYPE)
+    y = x @ torch.randn(4, 2, dtype=DTYPE)
+    model = nn.Sequential(
+        nn.Identity(), nn.Linear(4, 2, bias=False, dtype=DTYPE), nn.Tanh()
+    )
+    learner.fit(model, [(x, y)])
+    _assert_fits(model[:2], x, y, 1e-2)
+
+
+def test_fits_a_dense_readout():
+    torch.manual_seed(0)
+    x = torch.randn(40, 4, dtype=DTYPE)
+    y = x @ torch.randn(4, 2, dtype=DTYPE) + 0.5
+    model = nn.Sequential(nn.Identity(), Dense(4, 2, bias=nn.init.zeros_, dtype=DTYPE))
+    Ridge(l2=1e-2).fit(model, [(x, y)])
+    weight, bias = _reference(x, y, 1e-2, intercept=True)
+    torch.testing.assert_close(model[-1].weight, weight)
+    torch.testing.assert_close(model[-1].bias, bias)
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        nn.Sequential(nn.Identity(), Diagonal(4)),
+        nn.Sequential(nn.Identity(), BlockDiagonal([2, 2])),
+        nn.Sequential(nn.Identity(), Dense(4, 4, dtype=torch.cfloat)),
+        nn.Sequential(nn.Linear(4, 4), nn.Tanh()),
+    ],
+)
+def test_rejects_readouts_that_are_not_real_linear_maps(model):
+    with pytest.raises(TypeError, match=r"real nn\.Linear or Dense"):
+        Ridge().fit(model, [(torch.randn(8, 4), torch.randn(8, 4))])
+
+
+def test_needs_a_name_for_the_readout_of_a_non_sequential_model():
+    with pytest.raises(TypeError, match="readout="):
+        Ridge().fit(nn.Linear(4, 2), [(torch.randn(8, 4), torch.randn(8, 2))])
+
+
+def test_rejects_a_readout_that_runs_more_than_once():
+    shared = nn.Linear(4, 2)
+    model = nn.Sequential(nn.Identity(), Concat(shared, shared))
+    with pytest.raises(ValueError, match="ran 2"):
+        Ridge(readout="1.0").fit(model, [(torch.randn(8, 4), torch.randn(8, 2))])
 
 
 def test_selects_l2_on_validation():
