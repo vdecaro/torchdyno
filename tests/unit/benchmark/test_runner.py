@@ -1,6 +1,10 @@
 import pytest
 import torch
 from torch import nn
+from torch.utils.data import (
+    DataLoader,
+    TensorDataset,
+)
 
 from tests.unit.compositions import adadiag
 from torchdyno.benchmark import (
@@ -9,7 +13,11 @@ from torchdyno.benchmark import (
     run,
     to_markdown,
 )
-from torchdyno.learners import Ridge
+from torchdyno.learners import (
+    Backprop,
+    Ridge,
+)
+from torchdyno.pooling import Last
 from torchdyno.tasks import Regression
 
 
@@ -78,3 +86,30 @@ def test_scores_after_the_dataset_washout():
     with torch.no_grad():
         expected = torch.mean((model(x)[5:] - y[5:]) ** 2).item()
     assert result.per_seed[0]["mse"] == pytest.approx(expected)
+
+
+def test_a_seed_gives_the_same_result_alone_or_in_a_sweep():
+    x = torch.randn(32, 6, 1)
+    pairs = TensorDataset(x, x.sum(1))
+
+    def collate(batch):
+        xs, ys = zip(*batch, strict=True)
+        return torch.stack(xs, dim=1), torch.stack(ys)
+
+    loader = DataLoader(
+        pairs,
+        batch_size=4,
+        shuffle=True,
+        collate_fn=collate,
+        generator=torch.Generator(),
+    )
+    data = BenchmarkDataset(
+        "toy", Regression(), loader, [(x.transpose(0, 1), x.sum(1))]
+    )
+
+    def build(task):
+        model = nn.Sequential(adadiag(1, (4, 4), pairs=1), Last(), nn.Linear(8, 1))
+        return model, Backprop(task.loss, lr=1e-2, epochs=2)
+
+    alone = run(BenchmarkSpec(data, seeds=[1]), build).per_seed
+    assert run(BenchmarkSpec(data, seeds=[0, 1]), build).per_seed[1:] == alone

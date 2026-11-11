@@ -9,6 +9,8 @@ from typing import (
     Any,
 )
 
+import torch
+
 from torchdyno.learners import evaluate
 from torchdyno.reproducibility import seed_all
 
@@ -57,7 +59,9 @@ def run(
         build: ``build(task) -> (model, learner)``, called after
             ``seed_all(seed)`` so each seed gets a freshly initialized model.
             The learner's ``fit(model, train, val)`` gets the dataset's
-            validation loader, which may be ``None``.
+            validation loader, which may be ``None``. A loader with its own
+            ``generator``, such as a shuffling ``DataLoader``, is seeded too, so
+            its order depends only on the seed.
 
     Returns:
         The metrics on the evaluation loader after the dataset's washout, per
@@ -70,10 +74,13 @@ def run(
         raise ValueError("spec.seeds must be non-empty")
 
     data = spec.dataset
+    loaders = (data.train_loader, data.val_loader, data.eval_loader)
+    found = (getattr(loader, "generator", None) for loader in loaders)
+    generators = [g for g in found if isinstance(g, torch.Generator)]
     per_seed: list[dict[str, float]] = []
     wall_time = 0.0
     for seed in spec.seeds:
-        seed_all(seed)
+        seed_all(seed, *generators)
         model, learner = build(data.task)
         start = time.perf_counter()
         learner.fit(model, data.train_loader, data.val_loader)

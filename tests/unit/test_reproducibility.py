@@ -18,6 +18,14 @@ def test_seed_all_repeats_python_and_torch_draws():
     assert torch.equal(first[1], second[1])
 
 
+def test_seed_all_seeds_the_generators_it_is_given():
+    generator = torch.Generator()
+    seed_all(5, generator, deterministic=False)
+    first = torch.randn(3, generator=generator)
+    seed_all(5, generator, deterministic=False)
+    assert torch.equal(first, torch.randn(3, generator=generator))
+
+
 def test_seed_all_enables_deterministic_algorithms():
     was = torch.are_deterministic_algorithms_enabled(), torch.backends.cudnn.benchmark
     try:

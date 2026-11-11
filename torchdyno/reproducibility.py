@@ -12,15 +12,21 @@ from typing import Any
 import torch
 
 
-def seed_all(seed: int, deterministic: bool = True) -> None:
+def seed_all(
+    seed: int, *generators: torch.Generator, deterministic: bool = True
+) -> None:
     """Seed Python and torch on every device, optionally forcing determinism.
 
     Args:
         seed: the seed.
+        generators: generators to seed as well, e.g. a ``DataLoader``'s own,
+            which the global seed does not reach.
         deterministic: whether to ask torch for deterministic algorithms.
     """
     random.seed(seed)
     torch.manual_seed(seed)
+    for generator in generators:
+        generator.manual_seed(seed)
     if deterministic:
         torch.use_deterministic_algorithms(True, warn_only=True)
         torch.backends.cudnn.deterministic = True
