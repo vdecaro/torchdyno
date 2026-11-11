@@ -37,7 +37,12 @@ class RLS:
             l2: the initial ``P = I / l2``, i.e. the ridge penalty.
             washout: leading timesteps to discard; only for time-aligned
                 features.
+
+        Raises:
+            ValueError: if ``l2`` is not positive.
         """
+        if not l2 > 0:
+            raise ValueError(f"l2 must be > 0, got {l2}.")
         self.l2 = l2
         self.washout = washout
 
@@ -60,6 +65,7 @@ class RLS:
 
         Raises:
             TypeError: if the last module is not an ``nn.Linear``.
+            ValueError: if ``train`` has no samples.
         """
         readout = model[-1]
         if not isinstance(readout, nn.Linear):
@@ -70,8 +76,10 @@ class RLS:
         device = readout.weight.device
         p = torch.eye(size, dtype=torch.float64, device=device) / self.l2
         w = torch.zeros(size, readout.out_features, dtype=torch.float64, device=device)
+        seen = 0
         for x, y in train:
             rows, targets = feature_rows(model, x, y, self.washout)
+            seen += len(rows)
             if bias:
                 rows = torch.cat([rows, rows.new_ones(len(rows), 1)], dim=1)
             for row, target in zip(rows, targets, strict=True):
@@ -79,6 +87,8 @@ class RLS:
                 gain = p_row / (1 + row @ p_row)
                 w += torch.outer(gain, target - row @ w)
                 p -= torch.outer(gain, p_row)
+        if not seen:
+            raise ValueError("train has no samples to fit on.")
         with torch.no_grad():
             readout.weight.copy_(w[: readout.in_features].T)
             if readout.bias is not None:

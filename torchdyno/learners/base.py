@@ -110,6 +110,9 @@ def evaluate(
         The score of the predictions for every batch, concatenated. Time-aligned
         ``(T, B, O)`` predictions are scored as one ``(O,)`` row per timestep, so
         batches of different lengths combine.
+
+    Raises:
+        ValueError: if ``loader`` has no batches.
     """
     preds, targets = [], []
     with torch.no_grad(), restore_modes(model):
@@ -118,6 +121,8 @@ def evaluate(
             pred, target = drop_washout(model(x), y, washout)
             preds.append(pred)
             targets.append(target)
+    if not preds:
+        raise ValueError("The loader has no batches to score.")
     if preds[0].ndim == 3:  # noqa: PLR2004 time-aligned: rows of (T·B, O)
         preds = [pred.flatten(0, 1) for pred in preds]
         targets = [target.flatten(0, 1) for target in targets]

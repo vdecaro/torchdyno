@@ -51,7 +51,12 @@ class IntrinsicPlasticity:
             mu: the target mean of the activations.
             sigma: the target standard deviation of the activations.
             epochs: passes over ``train``.
+
+        Raises:
+            ValueError: if ``sigma`` is not positive.
         """
+        if not sigma > 0:
+            raise ValueError(f"sigma must be > 0, got {sigma}.")
         self.lr = lr
         self.mu = mu
         self.sigma = sigma
@@ -80,8 +85,8 @@ class IntrinsicPlasticity:
         cells = [m for m in model.modules() if isinstance(m, LeakyCell)]
         if not cells:
             raise ValueError("Intrinsic plasticity needs a LeakyCell in the model.")
-        if any(cell.activation is not torch.tanh for cell in cells):
-            raise ValueError("Intrinsic plasticity needs torch.tanh activations.")
+        if not all(_is_tanh(cell.activation) for cell in cells):
+            raise ValueError("Intrinsic plasticity needs tanh activations.")
         rng = get_rng_state()
         traces: dict[LeakyCell, list[tuple[Tensor, Tensor]]] = {c: [] for c in cells}
 
@@ -111,3 +116,8 @@ class IntrinsicPlasticity:
         gain = -1 / cell.gain + bias * x
         cell.bias.sub_(self.lr * F.normalize(bias.sum(0).mean(0), dim=0))
         cell.gain.sub_(self.lr * F.normalize(gain.sum(0).mean(0), dim=0))
+
+
+def _is_tanh(activation: object) -> bool:
+    """Whether ``activation`` is one of torch's tanh functions or modules."""
+    return activation in (torch.tanh, F.tanh) or isinstance(activation, torch.nn.Tanh)

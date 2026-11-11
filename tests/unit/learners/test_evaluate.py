@@ -4,6 +4,7 @@ from torch import nn
 
 from tests.unit.compositions import reservoir
 from torchdyno.learners import (
+    RLS,
     Backprop,
     Ridge,
     evaluate,
@@ -96,3 +97,22 @@ def test_rejects_a_washout_it_cannot_apply(shape, washout):
             torch.equal,
             washout,
         )
+
+
+@pytest.mark.parametrize(
+    "fit",
+    [
+        lambda m: Ridge().fit(m, []),
+        lambda m: RLS().fit(m, []),
+        lambda m: Backprop(nn.MSELoss()).fit(m, []),
+        lambda m: evaluate(m, [], torch.equal),
+    ],
+)
+def test_rejects_loaders_with_nothing_in_them(fit):
+    with pytest.raises(ValueError, match=r"no (samples|batches)"):
+        fit(nn.Sequential(Last(), nn.Linear(4, 1)))
+
+
+def test_rls_needs_a_positive_penalty():
+    with pytest.raises(ValueError, match="l2"):
+        RLS(l2=0.0)

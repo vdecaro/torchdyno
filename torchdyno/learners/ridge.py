@@ -155,6 +155,8 @@ class Ridge:
                 gram, cross = gram + f.T @ f, cross + f.T @ t
                 sum_x, sum_y = sum_x + f.sum(0), sum_y + t.sum(0)
 
+        if n == 0:
+            raise ValueError("train has no samples to fit on.")
         intercept = readout.bias is not None
         if gram is None:  # dual form on the kept rows
             rows, targets = torch.cat(xs), torch.cat(ys)

@@ -80,5 +80,17 @@ def test_needs_tanh_leaky_cells():
         IntrinsicPlasticity().fit(nn.Sequential(adadiag(), nn.Linear(12, 1)), [])
     model = nn.Sequential(reservoir(), nn.Linear(16, 1))
     model[0].cell.activation = torch.relu
-    with pytest.raises(ValueError, match=r"torch\.tanh"):
+    with pytest.raises(ValueError, match="tanh activations"):
         IntrinsicPlasticity().fit(model, [])
+
+
+@pytest.mark.parametrize("activation", [F.tanh, nn.Tanh()])
+def test_accepts_every_form_of_tanh(activation):
+    model = nn.Sequential(reservoir(), nn.Linear(16, 1))
+    model[0].cell.activation = activation
+    IntrinsicPlasticity().fit(model, [(torch.randn(5, 2, 2), None)])
+
+
+def test_needs_a_positive_target_spread():
+    with pytest.raises(ValueError, match="sigma"):
+        IntrinsicPlasticity(sigma=0.0)

@@ -102,6 +102,9 @@ class Backprop:
 
         Returns:
             The per-epoch history and the RNG state at the start.
+
+        Raises:
+            ValueError: if ``train`` has no batches.
         """
         rng = get_rng_state()
         params = [p for p in model.parameters() if p.requires_grad]
@@ -120,7 +123,9 @@ class Backprop:
                     opt.step()
                     total += loss.item()
                     n += 1
-                history["train_loss"].append(total / max(n, 1))
+                if not n:
+                    raise ValueError("train has no batches to train on.")
+                history["train_loss"].append(total / n)
                 if val is not None and self.score_fn is not None:
                     history.setdefault("val_score", []).append(
                         evaluate(model, val, self.score_fn, self.washout)
