@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from typing import (
     TYPE_CHECKING,
+    cast,
     overload,
 )
 
@@ -147,18 +148,24 @@ class Stack(nn.Sequential):
     side by side, e.g. a deep reservoir read out over every layer.
     """
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, h0: Tensor | None = None) -> Tensor:
         """Run the layers.
 
         Args:
             x: the input sequence, shape ``(T, B, F)``.
+            h0: the layers' states to start from, side by side, e.g. the last
+                output of a previous call; ``None`` starts every layer afresh.
 
         Returns:
             The outputs of all layers, concatenated on the last dimension.
         """
+        starts: list[Tensor | None] = [None] * len(self)
+        if h0 is not None:
+            sizes = [cast("Recurrent", layer).cell.state_size for layer in self]
+            starts = list(h0.split(sizes, -1))
         outputs = []
-        for layer in self:
-            x = layer(x)
+        for layer, start in zip(self, starts, strict=True):
+            x = layer(x) if start is None else layer(x, h0=start)
             outputs.append(x)
         return torch.cat(outputs, dim=-1)
 

@@ -65,3 +65,10 @@ def test_a_slice_of_a_concat_is_a_concat():
     x = torch.randn(4, 2, 3)
     torch.testing.assert_close(first_two(x), pooled(x)[..., :6])
     assert isinstance(pooled[1], Mean)
+
+
+def test_stack_continues_from_the_states_it_returned():
+    stack = Stack(Recurrent(SumCell()), Recurrent(SumCell()))
+    x = torch.randn(6, 2, 3)
+    out = stack(x)
+    torch.testing.assert_close(stack(x[3:], h0=out[2]), out[3:])
