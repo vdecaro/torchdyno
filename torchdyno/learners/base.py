@@ -180,7 +180,8 @@ def evaluate(
     Returns:
         The score of the predictions for every batch, concatenated. Time-aligned
         ``(T, B, O)`` predictions are scored as one ``(O,)`` row per timestep, so
-        batches of different lengths combine.
+        batches of different lengths combine; steps a sequence does not have,
+        all NaN, are left out.
 
     Raises:
         ValueError: if ``loader`` has no batches.
@@ -195,8 +196,9 @@ def evaluate(
     if not preds:
         raise ValueError("The loader has no batches to score.")
     if preds[0].ndim == 3:  # noqa: PLR2004 time-aligned: rows of (T·B, O)
-        preds = [pred.flatten(0, 1) for pred in preds]
-        targets = [target.flatten(0, 1) for target in targets]
+        pairs = zip(preds, targets, strict=True)
+        rows = [_present(p.flatten(0, 1), t.flatten(0, 1)) for p, t in pairs]
+        preds, targets = [r for r, _ in rows], [t for _, t in rows]
     return score_fn(torch.cat(preds), torch.cat(targets))
 
 
@@ -273,12 +275,6 @@ def feature_rows(
     if len(inputs) != 1:
         raise ValueError(f"The readout must run once per batch, it ran {len(inputs)}.")
     features, y = drop_washout(inputs[0], y, washout)
-    if not features.isfinite().all():
-        rows = int((~features.isfinite()).any(-1).sum())
-        raise ValueError(
-            f"{rows} feature rows are not finite, e.g. NaN from positions a layer "
-            "did not produce, or a state that diverged."
-        )
     shape = tuple(y.shape)
     if not y.is_floating_point():
         y = F.one_hot(y, readout.out_features)
@@ -289,5 +285,19 @@ def feature_rows(
             "outputs: pass float targets with the outputs last, or integer class "
             "indices."
         )
-    features = features.reshape(-1, features.shape[-1]).double()
-    return features, y.reshape(features.shape[0], -1).double()
+    features, y = features.reshape(-1, features.shape[-1]), y.reshape(-1, y.shape[-1])
+    if inputs[0].ndim == 3:  # noqa: PLR2004 time-aligned: drop the absent steps
+        features, y = _present(features, y)
+    if not features.isfinite().all():
+        rows = int((~features.isfinite()).any(-1).sum())
+        raise ValueError(
+            f"{rows} feature rows are not finite, e.g. a state that diverged, or "
+            "NaN in some but not all features of a step."
+        )
+    return features.double(), y.double()
+
+
+def _present(rows: Tensor, targets: Tensor) -> tuple[Tensor, Tensor]:
+    """Rows of a time-aligned output, and their targets, at the steps that exist."""
+    keep = ~rows.isnan().all(-1)
+    return rows[keep], targets[keep]

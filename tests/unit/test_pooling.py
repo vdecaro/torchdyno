@@ -28,7 +28,7 @@ def test_max_and_ppv_skip_positions_marked_as_missing():
     )  # (T=3, B=1, H=2)
     torch.testing.assert_close(Max()(x), torch.tensor([[2.0, 3.0]]))
     torch.testing.assert_close(PPV()(x), torch.tensor([[1 / 2, 2 / 3]]))
-    assert Last()(x).isfinite().all() and Mean()(x).isnan().any()
+    torch.testing.assert_close(Mean()(x), torch.tensor([[0.5, 2 / 3]]))
 
 
 def test_max_and_ppv_without_missing_positions():

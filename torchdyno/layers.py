@@ -1,4 +1,10 @@
-"""Layers: modules that map a ``(T, B, F)`` sequence to a ``(T, B, H)`` one."""
+"""Layers: modules that map a ``(T, B, F)`` sequence to a ``(T, B, H)`` one.
+
+A timestep whose features are all NaN is one a sequence does not have, e.g. the
+padding of a shorter sequence in a batch, at its end or its start. The layers
+skip such steps and output NaN at them, and pooling and the learners skip them
+in turn, so sequences of different lengths share a batch.
+"""
 
 from __future__ import annotations
 
@@ -33,6 +39,11 @@ __all__ = [
     "Stack",
     "rocket",
 ]
+
+
+def _absent(x: Tensor) -> Tensor:
+    """The ``(T, B)`` steps a sequence does not have: NaN in every feature."""
+    return x.isnan().all(-1)
 
 
 def _check(x: Tensor, h0: Tensor | None = None, state_size: int = 0) -> None:
@@ -80,11 +91,11 @@ class Recurrent(nn.Module):
         _check(x, h0, self.cell.state_size)
         return h0
 
-    def _carry(self, out: Tensor) -> Tensor:
-        """Keep the last state when carrying; return ``out``."""
+    def _finish(self, states: Tensor, absent: Tensor) -> Tensor:
+        """Keep the last state when carrying; NaN where a step is absent."""
         if self.carry:
-            self.state = out[-1].detach()
-        return out
+            self.state = states[-1].detach()
+        return states.masked_fill(absent[..., None], torch.nan)
 
     def forward(self, x: Tensor, h0: Tensor | None = None) -> Tensor:
         """Run the cell over ``x``.
@@ -95,18 +106,23 @@ class Recurrent(nn.Module):
                 call; ``None`` starts from zeros, or from the carried state.
 
         Returns:
-            The state after every timestep, shape ``(T, B, state_size)``.
+            The state after every timestep, shape ``(T, B, state_size)``; at a
+            step a sequence does not have, the state holds and the output is
+            NaN.
 
         Raises:
             ValueError: if ``x`` or the starting state has the wrong shape.
         """
         h0 = self._start(x, h0)
+        absent = _absent(x)
+        x = x.masked_fill(absent[..., None], 0)
         h = x.new_zeros(x.shape[1], self.cell.state_size) if h0 is None else h0
         states = []
-        for u in x:
-            h = self.cell(u, h)
+        for u, gap in zip(x, absent, strict=True):
+            step = self.cell(u, h)
+            h = torch.where(gap[:, None], h, step) if gap.any() else step
             states.append(h)
-        return self._carry(torch.stack(states))
+        return self._finish(torch.stack(states), absent)
 
 
 class Scan(Recurrent):
@@ -151,12 +167,16 @@ class Scan(Recurrent):
             ValueError: if ``x`` or the starting state has the wrong shape.
         """
         h0 = self._start(x, h0)
-        a, b = self.cell.coefficients(x)
+        absent = _absent(x)
+        a, b = self.cell.coefficients(x.masked_fill(absent[..., None], 0))
         a, b = torch.broadcast_tensors(a, b)
+        if absent.any():  # hold the state: h_t = 1 h_(t-1) + 0
+            gap = absent[..., None]
+            a, b = a.masked_fill(gap, 1), b.masked_fill(gap, 0)
         if h0 is not None:
             first = b[0] + a[0] * self.cell.unpack(h0)
             b = torch.cat([first.unsqueeze(0), b[1:]])
-        return self._carry(self.cell.pack(_scan(a, b)))
+        return self._finish(self.cell.pack(_scan(a, b)), absent)
 
 
 def _scan(a: Tensor, b: Tensor) -> Tensor:
@@ -383,7 +403,8 @@ class RandomConv(nn.Module):
                 f"got {x.shape[0]}."
             )
         steps = x.shape[0]
-        signal = x.permute(1, 2, 0)  # conv1d wants (B, C, T)
+        absent = _absent(x).T[:, None]  # (B, 1, T)
+        signal = x.permute(1, 2, 0).masked_fill(absent, 0)  # conv1d wants (B, C, T)
         out = signal.new_full((x.shape[1], self.kernels, steps), torch.nan)
         groups = torch.stack([self.lengths, self.dilations, self.paddings], dim=1)
         for group in groups.unique(dim=0):
@@ -396,5 +417,22 @@ class RandomConv(nn.Module):
                 padding=padding,
                 dilation=dilation,
             )
+            if absent.any():
+                conv = conv.masked_fill(
+                    _unproduced(absent, size, dilation, padding), torch.nan
+                )
             out[:, index, steps - conv.shape[-1] :] = conv
         return out.permute(2, 0, 1)
+
+
+def _unproduced(absent: Tensor, size: int, dilation: int, padding: int) -> Tensor:
+    """Where a kernel's output depends on steps a sequence does not have.
+
+    A padded kernel's output stands for the step at its centre, which zero
+    padding past a shorter sequence's end does not change; an unpadded one
+    needs its whole window.
+    """
+    if padding:
+        return absent
+    ones = absent.new_ones(1, 1, size, dtype=torch.float32)
+    return F.conv1d(absent.float(), ones, dilation=dilation) > 0

@@ -128,7 +128,7 @@ def test_rejects_targets_that_do_not_match_the_readout(learner, features, labels
 @pytest.mark.parametrize("learner", [Ridge(), RLS()])
 def test_rejects_features_that_are_not_finite(learner):
     x = torch.randn(10, 8, 4)
-    x[:3, 0] = torch.nan
+    x[:3, 0] = torch.inf  # a state that diverged
     model = nn.Sequential(Mean(), nn.Linear(4, 3))
     with pytest.raises(ValueError, match="1 feature rows are not finite"):
         learner.fit(model, [(x, torch.zeros(8, dtype=torch.long))])

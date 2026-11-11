@@ -1,9 +1,9 @@
 """Pooling: reduce a ``(T, B, H)`` sequence over time to ``(B, H)`` features.
 
 A layer marks positions it did not produce with NaN, as
-:class:`~torchdyno.layers.RandomConv` does for kernels without padding.
-:class:`Max` and :class:`PPV` skip them; :class:`Last` and :class:`Mean`
-propagate them, so a misuse stays visible.
+:class:`~torchdyno.layers.RandomConv` does for kernels without padding and every
+layer does at the steps a shorter sequence does not have. Every pooling skips
+them.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ __all__ = [
 
 
 class Last(nn.Module):
-    """The last timestep."""
+    """The last timestep each sequence has."""
 
     def forward(self, x: Tensor) -> Tensor:
         """Pool over time.
@@ -34,13 +34,17 @@ class Last(nn.Module):
             x: the sequence, shape ``(T, B, H)``.
 
         Returns:
-            ``x[-1]``, shape ``(B, H)``.
+            Each sequence's last step that is not all NaN, shape ``(B, H)``;
+            ``x[-1]`` for sequences of full length.
         """
-        return x[-1]
+        present = ~x.isnan().all(-1)  # (T, B)
+        steps = torch.arange(1, len(x) + 1, device=x.device)[:, None]
+        last = (present * steps).argmax(0)
+        return x.gather(0, last[None, :, None].expand(1, *x.shape[1:]))[0]
 
 
 class Mean(nn.Module):
-    """The average over time."""
+    """The average over time, skipping NaN."""
 
     def forward(self, x: Tensor) -> Tensor:
         """Pool over time.
@@ -49,9 +53,9 @@ class Mean(nn.Module):
             x: the sequence, shape ``(T, B, H)``.
 
         Returns:
-            The mean over time, shape ``(B, H)``.
+            The mean over the produced positions, shape ``(B, H)``.
         """
-        return x.mean(dim=0)
+        return x.nanmean(dim=0)
 
 
 class Max(nn.Module):
