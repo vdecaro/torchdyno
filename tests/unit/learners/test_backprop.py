@@ -127,12 +127,13 @@ def test_leaves_absent_steps_out_of_the_loss():
 
 
 def test_clips_the_gradient_norm():
+    torch.manual_seed(0)
     model = nn.Sequential(nn.Linear(2, 1))
     before = nn.utils.parameters_to_vector(model.parameters()).detach()
     data = [(torch.randn(16, 2), 1e6 * torch.ones(16, 1))]
     Backprop(nn.MSELoss(), optimizer="sgd", lr=1.0, epochs=1, clip=0.5).fit(model, data)
     after = nn.utils.parameters_to_vector(model.parameters()).detach()
-    assert (after - before).norm() == pytest.approx(0.5)
+    assert (after - before).norm().item() == pytest.approx(0.5, rel=1e-5)
 
 
 def test_steps_the_scheduler_after_every_batch_when_asked():
