@@ -63,6 +63,11 @@ html_theme = "pydata_sphinx_theme"
 html_logo = "_static/images/logo.png"
 
 html_static_path = ["_static"]
+html_favicon = "_static/favicon/favicon-32x32.png"
+html_css_files = [
+    "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap",
+    "css/custom.css",
+]
 
 html_context = {
     "github_url": "https://github.com",
@@ -93,7 +98,7 @@ html_theme_options = {
     "footer_center": ["sphinx-version"],
     "footer_end": ["theme-version"],
     "show_nav_level": 1,
-    "navigation_depth": 4,
+    "navigation_depth": 2,
     "icon_links": icon_links,
     "header_links_before_dropdown": 4,
     "logo": {
@@ -106,6 +111,7 @@ html_theme_options = {
 html_sidebars = {"**": ["sidebar-nav-bs", "sidebar-ethical-ads"]}
 
 html_scaled_image_link = False
+
 
 
 def filter_out_undoc_class_members(member_name, class_name, module_name):

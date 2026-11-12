@@ -1,0 +1,71 @@
+/* The logo's palette: orange body, magenta underside, plum shadow. */
+:root {
+  --td-ink: #24141f;
+  --td-plum: #5b1a4b;
+  --td-flame: #e8551a;
+  --td-magenta: #c2246b;
+  --td-mist: #f7f0f3;
+  --pst-font-family-base: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --pst-font-family-heading: var(--pst-font-family-base);
+  --pst-font-family-monospace: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html[data-theme="light"] {
+  --pst-color-primary: #b8410f;
+  --pst-color-secondary: var(--td-magenta);
+  --pst-color-accent: var(--td-magenta);
+  --pst-color-link: #a8380c;
+  --pst-color-link-hover: var(--td-magenta);
+  --pst-color-inline-code: var(--td-plum);
+  --pst-color-background: #ffffff;
+  --pst-color-on-background: #ffffff;
+  --pst-color-surface: var(--td-mist);
+  --pst-color-border: #eadde3;
+  --pst-color-text-base: var(--td-ink);
+  --pst-color-text-muted: #6b5a64;
+  --pst-color-heading: var(--td-ink);
+}
+
+html[data-theme="dark"] {
+  --pst-color-primary: #ff8a52;
+  --pst-color-secondary: #f0629f;
+  --pst-color-accent: #f0629f;
+  --pst-color-link: #ff9a66;
+  --pst-color-link-hover: #f58dbb;
+  --pst-color-inline-code: #f5b8d3;
+  --pst-color-background: #1a1017;
+  --pst-color-on-background: #22151e;
+  --pst-color-surface: #261821;
+  --pst-color-border: #3a2833;
+  --pst-color-text-base: #f2e8ee;
+  --pst-color-text-muted: #c4b0bc;
+  --pst-color-heading: #ffffff;
+}
+
+.bd-content h1,
+.bd-content h2,
+.bd-content h3 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.bd-content .sd-card {
+  border-color: var(--pst-color-border);
+  box-shadow: none;
+}
+
+.bd-content .sd-card:hover {
+  border-color: var(--pst-color-primary);
+}
+
+.bd-content .sd-card,
+.bd-content .admonition,
+.bd-content .sd-dropdown,
+.bd-content div.highlight,
+.bd-content pre {
+  border-radius: 0.5rem;
+}
+
+.navbar-brand .title {
+  font-weight: 800;
+}
