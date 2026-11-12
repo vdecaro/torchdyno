@@ -76,7 +76,7 @@ class LeakyField(nn.Module):
     """A leaky ODE's vector field: ``f(u, h) = -h + W φ(h) + L h + B u``.
 
     With a block-diagonal ``W`` and a skew-symmetric ``L``, an assembly of
-    coupled modules; integrate it with :class:`EulerCell`.
+    coupled modules; integrate it with [`EulerCell`][torchdyno.sequence.EulerCell].
     """
 
     def __init__(
@@ -129,9 +129,10 @@ class LeakyField(nn.Module):
 class EulerCell(Cell):
     """One explicit Euler step of an ODE: ``h' = h + ε ⊙ f(u, h)``.
 
-    ``f`` is any vector field, e.g. :class:`LeakyField` for an assembly of
-    coupled modules, or a module of one's own. ``ε`` is a constant, a per-unit
-    tensor, or computed from the input and the state, e.g. by a :class:`Gate`.
+    ``f`` is any vector field, e.g. [`LeakyField`][torchdyno.sequence.LeakyField] for an
+    assembly of coupled modules, or a module of one's own. ``ε`` is a constant, a
+    per-unit tensor, or computed from the input and the state, e.g. by a
+    [`Gate`][torchdyno.sequence.Gate].
     """
 
     step: Step

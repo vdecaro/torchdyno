@@ -25,13 +25,13 @@ if TYPE_CHECKING:
 
 
 class FORCE:
-    """Fit the readout of a :class:`~torchdyno.sequence.FeedbackCell` in the loop.
+    """Fit the readout of a ``FeedbackCell`` in the loop.
 
     The model runs as it is, feeding back its own output, while recursive least
     squares updates the readout at every timestep on the new state and the
     target, so the fed-back output stays close to the target from the start
     (Sussillo and Abbott, 2009). ``P`` is kept across batches and fits, as by
-    :class:`~torchdyno.learners.RLS`, until :meth:`reset`.
+    [`RLS`][torchdyno.learners.RLS], until [`reset()`][torchdyno.learners.FORCE.reset].
     """
 
     def __init__(
@@ -108,7 +108,7 @@ class FORCE:
 
         Args:
             model: the model holding one feedback cell, run by a
-                :class:`~torchdyno.sequence.Recurrent` layer.
+                [`Recurrent`][torchdyno.sequence.Recurrent] layer.
             train: batches of time-first ``(x, y)``, ``y`` of shape ``(T, B, O)``
                 with the readout's ``O`` outputs; ``x`` may have no features.
             val: unused; accepted so every learner fits the same way.

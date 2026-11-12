@@ -32,7 +32,7 @@ class FitResult:
             one-shot solvers.
         best: selected hyperparameters and scores (e.g. ``{"l2": 1e-6}``).
         rng: RNG state captured at fit start, for
-            :func:`~torchdyno.reproducibility.set_rng_state`.
+            [`set_rng_state()`][torchdyno.reproducibility.set_rng_state].
     """
 
     history: dict[str, list[float]] = field(default_factory=dict)
@@ -43,8 +43,8 @@ class FitResult:
 class Learner(Protocol):
     """Anything that fits a model: what every learner here implements.
 
-    A new learning rule needs only this method to run wherever a learner is
-    expected, e.g. in :class:`Chain` or :func:`~torchdyno.benchmark.run`.
+    A new learning rule needs only this method to run wherever a learner is expected,
+    e.g. in [`Chain`][torchdyno.learners.Chain] or [`run()`][torchdyno.benchmark.run].
     """
 
     def fit(

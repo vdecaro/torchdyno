@@ -1,7 +1,7 @@
 """Checks for layers that run a cell over time.
 
 ``assert_layer_conforms`` checks a layer such as
-:class:`~torchdyno.sequence.Recurrent` against the plain loop over its cell. Use it
+[`Recurrent`][torchdyno.sequence.Recurrent] against the plain loop over its cell. Use it
 in the tests of a new cell or layer. It raises ``AssertionError`` and needs no
 test framework. ``echo_state_distance`` measures how fast a layer forgets where
 it started.
@@ -37,7 +37,7 @@ def assert_layer_conforms(layer: Recurrent, x: Tensor) -> Tensor:
     dropout does not make the runs differ, and is left in the modes it had.
 
     Args:
-        layer: a :class:`~torchdyno.sequence.Recurrent` layer or a subclass.
+        layer: a [`Recurrent`][torchdyno.sequence.Recurrent] layer or a subclass.
         x: a ``(T, B, F)`` input with at least two timesteps and two sequences.
 
     Returns:
@@ -106,7 +106,7 @@ def echo_state_distance(layer: Recurrent, x: Tensor, scale: float = 1.0) -> Tens
     generator, and the layer runs in eval mode.
 
     Args:
-        layer: a :class:`~torchdyno.sequence.Recurrent` layer or a subclass.
+        layer: a [`Recurrent`][torchdyno.sequence.Recurrent] layer or a subclass.
         x: a ``(T, B, F)`` input.
         scale: the standard deviation of the random starting states.
 

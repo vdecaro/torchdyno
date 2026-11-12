@@ -37,7 +37,7 @@ def find_readout(model: nn.Module, path: str | None = None) -> nn.Linear | Dense
 
     Raises:
         TypeError: if the readout is not a real ``nn.Linear`` or
-            :class:`~torchdyno.matrices.Dense`, or ``path`` is ``None`` for a
+            [`Dense`][torchdyno.matrices.Dense], or ``path`` is ``None`` for a
             model that is not an ``nn.Sequential``.
     """
     if path is None:
@@ -73,7 +73,8 @@ def feature_rows(
 
     Args:
         model: the model holding the readout.
-        readout: the readout, e.g. from :func:`find_readout`.
+        readout: the readout, e.g. from
+            [`find_readout()`][torchdyno.learners.features.find_readout].
         x: the input batch.
         y: the targets of the readout's output, aligned with the features.
         washout: leading timesteps to drop.

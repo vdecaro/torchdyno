@@ -52,8 +52,8 @@ def run_conditions(
 ) -> dict[str, BenchmarkResult]:
     """Benchmark ``make_model`` under each condition on the same seeds.
 
-    Any other condition is a :func:`~torchdyno.benchmark.run` of its own build,
-    added to the result for :func:`conditions_table`, e.g.
+    Any other condition is a [`run()`][torchdyno.benchmark.run] of its own build, added
+    to the result for [`conditions_table()`][torchdyno.benchmark.conditions_table], e.g.
     ``results["plasticity"] = run(spec, build)``.
 
     Args:
@@ -64,7 +64,7 @@ def run_conditions(
         epochs: the epochs for both backprop conditions.
         scheduler: optional ``optimizer -> LRScheduler`` for both backprop
             conditions.
-        ridge: more arguments for :class:`~torchdyno.learners.Ridge` in the
+        ridge: more arguments for [`Ridge`][torchdyno.learners.Ridge] in the
             readout condition, e.g. ``{"standardize": True}``.
 
     Every condition fits and scores after the dataset's washout.
@@ -95,7 +95,7 @@ def run_conditions(
 
 
 def conditions_table(results: dict[str, BenchmarkResult]) -> str:
-    """Render the results of :func:`run_conditions` as a markdown table.
+    """Render the results of ``run_conditions()`` as a markdown table.
 
     Args:
         results: the result of each condition.

@@ -112,7 +112,7 @@ def score_outputs(
     targets: list[Tensor],
     score_fn: Callable[[Tensor, Tensor], Score],
 ) -> Score:
-    """Score the outputs of several batches together, as :func:`evaluate` does.
+    """Score the outputs of several batches together, as ``evaluate()`` does.
 
     Args:
         preds: every batch's predictions, after the washout.

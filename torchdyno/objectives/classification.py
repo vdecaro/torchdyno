@@ -112,8 +112,8 @@ class F1(Metric):
 class ConfusionMatrix:
     """Counts of every true class against every predicted one.
 
-    A score for :func:`~torchdyno.learners.evaluate`, not a :class:`Metric`: it
-    is a matrix, not a number to select on.
+    A score for [`evaluate()`][torchdyno.learners.evaluate], not a
+    [`Metric`][torchdyno.objectives.Metric]: it is a matrix, not a number to select on.
     """
 
     def __call__(self, pred: Tensor, target: Tensor) -> Tensor:
@@ -156,7 +156,7 @@ class SequenceClassification(Task):
 class TimestepClassification(SequenceClassification):
     """One label per timestep: ``(T, B, C)`` logits against ``(T, B)`` indices.
 
-    The learners and :func:`~torchdyno.learners.evaluate` take time-aligned
+    The learners and [`evaluate()`][torchdyno.learners.evaluate] take time-aligned
     outputs as rows, so the loss and metrics are those of
-    :class:`SequenceClassification`.
+    [`SequenceClassification`][torchdyno.objectives.SequenceClassification].
     """

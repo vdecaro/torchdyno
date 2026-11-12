@@ -23,7 +23,7 @@ def _parameter(value: Tensor) -> nn.Parameter:
 
 
 def _value(stored: Tensor, is_complex: bool) -> Tensor:
-    """The value a :func:`_parameter` stores."""
+    """The value a ``_parameter()`` stores."""
     return torch.view_as_complex(stored) if is_complex else stored
 
 
@@ -31,7 +31,7 @@ def _draw(init: Init, shape: tuple[int, ...], dtype: torch.dtype) -> Tensor:
     """A tensor filled by ``init``, drawn in at least single precision.
 
     Torch has no QR or eigenvalue kernels for half precision, which
-    ``torch.nn.init.orthogonal_`` and :func:`spectral` need.
+    ``torch.nn.init.orthogonal_`` and [`spectral()`][torchdyno.matrices.spectral] need.
     """
     tensor = torch.empty(shape, dtype=torch.promote_types(dtype, torch.float32))
     init(tensor)

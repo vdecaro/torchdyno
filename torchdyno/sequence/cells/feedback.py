@@ -23,7 +23,7 @@ class FeedbackCell(Cell):
     with the model's output, ``nn.Sequential(Recurrent(FeedbackCell(cell,
     readout)), readout)``, to feed the model's own prediction back; run it on a
     ``(T, B, 0)`` input to generate with no input at all. Train the readout in
-    the loop with :class:`~torchdyno.learners.FORCE`.
+    the loop with [`FORCE`][torchdyno.learners.FORCE].
     """
 
     def __init__(self, cell: Cell, readout: nn.Module):

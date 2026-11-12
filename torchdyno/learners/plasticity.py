@@ -28,7 +28,7 @@ class IntrinsicPlasticity:
     From Schrauwen et al., "Improving reservoirs using intrinsic plasticity"
     (2008). A cell takes part if it has a per-unit ``gain`` and ``bias`` and a
     ``preactivation(u, h)``, and its activation is tanh, as for
-    :class:`~torchdyno.sequence.LeakyCell`. Each unit's activation
+    [`LeakyCell`][torchdyno.sequence.LeakyCell]. Each unit's activation
     ``h = tanh(g x + c)``, with ``x`` the cell's preactivation, is moved toward
     ``N(mu, sigma²)`` by the closed-form gradients of the KL divergence::
 
@@ -39,7 +39,7 @@ class IntrinsicPlasticity:
     batch: ``c -= lr dc`` and ``g -= lr dg``. It is unsupervised (targets are
     ignored) and changes only the gains and biases, even if they are frozen to
     backprop. Fit the readout afterwards, e.g. with
-    :class:`~torchdyno.learners.Ridge`.
+    [`Ridge`][torchdyno.learners.Ridge].
     """
 
     def __init__(

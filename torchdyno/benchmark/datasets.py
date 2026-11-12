@@ -173,7 +173,8 @@ def mackey_glass_benchmark(
 ) -> BenchmarkDataset:
     """Mackey-Glass forecasting: predict the series ``target_delay`` steps ahead.
 
-    Split as :func:`lorenz_benchmark`, in ``(T, 1, 1)`` batches.
+    Split as [`lorenz_benchmark()`][torchdyno.benchmark.lorenz_benchmark], in ``(T, 1,
+    1)`` batches.
 
     Args:
         length: number of samples.
@@ -199,11 +200,12 @@ def narma_benchmark(
     """NARMA: from inputs ``u ~ U(0, 0.5)``, predict the system's next output.
 
     The inputs are drawn from torch's generator; split as
-    :func:`lorenz_benchmark`, in ``(T, 1, 1)`` batches.
+    [`lorenz_benchmark()`][torchdyno.benchmark.lorenz_benchmark], in ``(T, 1, 1)``
+    batches.
 
     Args:
         length: number of steps.
-        order: the order of the system, see :func:`narma`.
+        order: the order of the system, see [`narma()`][torchdyno.benchmark.narma].
         splits: the train and validation fractions; evaluation gets the rest.
         washout: leading timesteps of each segment left unscored.
 
@@ -223,11 +225,11 @@ def memory_capacity_benchmark(
 ) -> BenchmarkDataset:
     """Memory capacity: recall the input of ``1, ..., delays`` steps ago.
 
-    Jaeger's measure of short-term memory. The inputs ``u ~ U(-0.8, 0.8)`` are
-    drawn from torch's generator, and output ``k`` is trained on ``u(t - k)``,
-    so the primary metric, :class:`~torchdyno.objectives.MemoryCapacity`, is at
-    most ``delays``. Split as :func:`lorenz_benchmark`, in ``(T, 1, ·)``
-    batches.
+    Jaeger's measure of short-term memory. The inputs ``u ~ U(-0.8, 0.8)`` are drawn
+    from torch's generator, and output ``k`` is trained on ``u(t - k)``, so the primary
+    metric, [`MemoryCapacity`][torchdyno.objectives.MemoryCapacity], is at most
+    ``delays``. Split as [`lorenz_benchmark()`][torchdyno.benchmark.lorenz_benchmark],
+    in ``(T, 1, ·)`` batches.
 
     Args:
         length: number of steps.

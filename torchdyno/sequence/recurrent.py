@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 class Recurrent(nn.Module):
     """Run a cell over time, one step after the other.
 
-    With ``carry=True`` the layer keeps its last state, detached, and the next
-    call starts from it, e.g. for truncated backprop through time or a stream
-    fed in chunks; :meth:`reset_state` starts over.
+    With ``carry=True`` the layer keeps its last state, detached, and the next call
+    starts from it, e.g. for truncated backprop through time or a stream fed in chunks;
+    [`reset_state()`][torchdyno.sequence.Recurrent.reset_state] starts over.
 
     To speed the loop up, compile the cell in place, ``layer.cell.compile()``,
     rather than the model: compiling the model unrolls the loop over every
@@ -95,11 +95,11 @@ class Recurrent(nn.Module):
 
 
 class Scan(Recurrent):
-    """Run a :class:`~torchdyno.sequence.LinearDiagonalCell` with a parallel scan.
+    """Run a ``LinearDiagonalCell`` with a parallel scan.
 
-    Same contract as :class:`Recurrent`, but ``ceil(log2 T)`` steps over the whole
-    sequence replace the ``T`` sequential ones, which the linear recurrence
-    allows.
+    Same contract as [`Recurrent`][torchdyno.sequence.Recurrent], but ``ceil(log2 T)``
+    steps over the whole sequence replace the ``T`` sequential ones, which the linear
+    recurrence allows.
     """
 
     cell: LinearDiagonalCell

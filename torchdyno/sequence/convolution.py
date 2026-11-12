@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 
 
 class Kernels(NamedTuple):
-    """A bank of 1D convolution kernels, as :class:`RandomConv` holds them.
+    """A bank of 1D convolution kernels, as ``RandomConv`` holds them.
 
-    Args:
+    Attributes:
         weight: ``(K, C, L)`` weights, zero-padded past each kernel's length.
         bias: ``(K,)`` biases.
         lengths: ``(K,)`` kernel lengths, at most ``L``.
@@ -104,8 +104,8 @@ def minirocket(
     - 1) / 8))``, up to 32 of them; each (dilation, pattern) pair is repeated
     for as many kernels as its share of ``kernels``, and is padded for every
     other pair. Rows run over dilations, then patterns, then repeats. Biases are
-    zero: fit them with :class:`~torchdyno.learners.QuantileBias`, and pool with
-    :class:`~torchdyno.readout.PPV`.
+    zero: fit them with [`QuantileBias`][torchdyno.learners.QuantileBias], and pool with
+    [`PPV`][torchdyno.readout.PPV].
 
     Args:
         channels: the number of input channels.
@@ -160,11 +160,11 @@ def minirocket(
 class RandomConv(nn.Module):
     """Fixed random convolution kernels: ``(T, B, C) -> (T, B, kernels)``.
 
-    The kernels come from ``draw``, :func:`rocket` by default, the way a matrix
-    takes an initialiser, and are kept as buffers. A kernel without padding
-    produces ``T - (L - 1) d`` outputs, aligned to the end, and the positions
-    before them are NaN: pool with :class:`~torchdyno.readout.PPV` and
-    :class:`~torchdyno.readout.Max`, which skip them.
+    The kernels come from ``draw``, [`rocket()`][torchdyno.sequence.rocket] by default,
+    the way a matrix takes an initialiser, and are kept as buffers. A kernel without
+    padding produces ``T - (L - 1) d`` outputs, aligned to the end, and the positions
+    before them are NaN: pool with [`PPV`][torchdyno.readout.PPV] and
+    [`Max`][torchdyno.readout.Max], which skip them.
     """
 
     weight: Tensor

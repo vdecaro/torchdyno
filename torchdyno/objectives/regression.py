@@ -80,8 +80,8 @@ class MemoryCapacity(Metric):
     """Jaeger's memory capacity: ``Σ_k r²(ŷ_k, y_k)`` over the outputs.
 
     Output ``k`` recalls the input ``k`` steps back, as in
-    :func:`~torchdyno.benchmark.memory_capacity_benchmark`; each adds its
-    squared correlation with its target, so ``K`` outputs score at most ``K``.
+    [`memory_capacity_benchmark()`][torchdyno.benchmark.memory_capacity_benchmark]; each
+    adds its squared correlation with its target, so ``K`` outputs score at most ``K``.
     """
 
     mode = "max"

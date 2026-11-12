@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class BenchmarkSpec:
-    """What to benchmark: a :class:`BenchmarkDataset` and the seeds to run.
+    """What to benchmark: a ``BenchmarkDataset`` and the seeds to run.
 
     Args:
         dataset: the data and task.

@@ -1,9 +1,9 @@
 """Cells: one step of a recurrence, ``cell(u_t, h) -> h'``.
 
 The new state is also the cell's output, so a layer such as
-:class:`~torchdyno.sequence.Recurrent` only has to collect the states. Cells take
+[`Recurrent`][torchdyno.sequence.Recurrent] only has to collect the states. Cells take
 their matrices as arguments, so the same update rule works with any matrix
-structure from :mod:`torchdyno.matrices`.
+structure from [`torchdyno.matrices`][torchdyno.matrices].
 """
 
 from .base import Cell

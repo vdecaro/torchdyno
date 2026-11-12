@@ -1,9 +1,9 @@
 """Top-level package for TorchDyno.
 
 A model is a plain ``nn.Sequential`` of parts from four levels:
-:mod:`~torchdyno.matrices`, :mod:`~torchdyno.sequence`,
-:mod:`~torchdyno.readout` and :mod:`~torchdyno.objectives`, fitted by
-:mod:`~torchdyno.learners`.
+[`matrices`][torchdyno.matrices], [`sequence`][torchdyno.sequence],
+[`readout`][torchdyno.readout] and [`objectives`][torchdyno.objectives], fitted by
+[`learners`][torchdyno.learners].
 """
 
 from . import (

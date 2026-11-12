@@ -37,7 +37,7 @@ def get_rng_state() -> dict[str, Any]:
     """Capture the RNG state of Python and torch (+ CUDA if present).
 
     Returns:
-        The state, for :func:`set_rng_state`.
+        The state, for [`set_rng_state()`][torchdyno.set_rng_state].
     """
     state: dict[str, Any] = {
         "python": random.getstate(),
@@ -49,7 +49,7 @@ def get_rng_state() -> dict[str, Any]:
 
 
 def set_rng_state(state: dict[str, Any]) -> None:
-    """Restore the RNG state captured by :func:`get_rng_state`.
+    """Restore the RNG state captured by [`get_rng_state()`][torchdyno.get_rng_state].
 
     Args:
         state: the captured state.

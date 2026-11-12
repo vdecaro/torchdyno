@@ -36,11 +36,11 @@ class QuantileBias:
 
     MiniRocket's bias rule (Dempster, Schmidt and Webb, 2021): kernel ``k`` is
     run, with padding, on one random training sequence, and its bias set to
-    minus the ``q_k`` quantile of the outputs, so that :class:`~torchdyno.readout.PPV`
+    minus the ``q_k`` quantile of the outputs, so that [`PPV`][torchdyno.readout.PPV]
     of the kernel is about ``1 - q_k`` there. ``q_k`` is the fractional part of
     ``(k + 1) φ``, with ``φ`` the golden ratio, and kernels with the same
     weights and dilation share the sequence. Pair it with
-    :func:`~torchdyno.sequence.minirocket` and chain it before the readout's
+    [`minirocket()`][torchdyno.sequence.minirocket] and chain it before the readout's
     learner.
     """
 
@@ -50,7 +50,7 @@ class QuantileBias:
         Args:
             conv: the convolution's name in the model, as
                 ``model.get_submodule`` takes it; ``None`` takes the only
-                :class:`~torchdyno.sequence.RandomConv`.
+                [`RandomConv`][torchdyno.sequence.RandomConv].
         """
         self.conv = conv
 
@@ -102,7 +102,7 @@ class QuantileBias:
         """Set the biases of the model's convolution from ``train``.
 
         Args:
-            model: the model holding one :class:`~torchdyno.sequence.RandomConv`.
+            model: the model holding one [`RandomConv`][torchdyno.sequence.RandomConv].
             train: batches of time-first ``(x, y)``; only ``x`` is used.
             val: unused; accepted so every learner fits the same way.
 

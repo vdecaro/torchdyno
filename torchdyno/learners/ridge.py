@@ -44,7 +44,7 @@ class Ridge:
     """Fit a linear readout on whatever reaches it, in closed form.
 
     The readout is ``model[-1]`` by default, or the real ``nn.Linear`` or
-    :class:`~torchdyno.matrices.Dense` that ``readout`` names, wherever it sits:
+    [`Dense`][torchdyno.matrices.Dense] that ``readout`` names, wherever it sits:
     a readout in the middle of a model is fitted on its own input, against
     targets for its own output. Time-aligned ``(T, B, H)`` features are fitted
     at every timestep, pooled ``(B, H)`` ones once per sequence; integer targets
@@ -80,7 +80,7 @@ class Ridge:
                 candidates.
             mode: ``"min"`` or ``"max"``: whether the best score is smallest or
                 largest; ``None`` takes ``score_fn.mode``, as a
-                :class:`~torchdyno.objectives.Metric` has.
+                [`Metric`][torchdyno.objectives.Metric] has.
             readout: the readout's name in the model, as
                 ``model.get_submodule`` takes it; ``None`` takes ``model[-1]``.
             class_weight: for integer targets, a weight per class on every

@@ -99,7 +99,7 @@ def ucr_benchmark(
     """A UCR or UEA dataset as a sequence classification benchmark.
 
     Args:
-        root: the archive folder, see :func:`load_ucr`.
+        root: the archive folder, see [`load_ucr()`][torchdyno.benchmark.load_ucr].
         name: the dataset name.
         batch_size: sequences per batch; ``None`` puts each split in one batch.
         val: the fraction of the training set held out for validation, drawn

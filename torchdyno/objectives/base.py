@@ -63,11 +63,11 @@ def require_same_shape(pred: Tensor, target: Tensor) -> None:
 class Task:
     """Bundles a task's loss and metrics.
 
-    A trainer uses ``loss``, a solver selecting on validation uses ``primary``
-    (a :class:`Metric`, hence a score with a ``mode``), and reports use every
-    metric in ``metrics``. Build one directly, e.g. ``Task({"f1": F1(),
-    "accuracy": Accuracy()}, "f1", loss=F.cross_entropy)``, or subclass it and
-    override :meth:`loss`.
+    A trainer uses ``loss``, a solver selecting on validation uses ``primary`` (a
+    [`Metric`][torchdyno.objectives.Metric], hence a score with a ``mode``), and reports
+    use every metric in ``metrics``. Build one directly, e.g. ``Task({"f1": F1(),
+    "accuracy": Accuracy()}, "f1", loss=F.cross_entropy)``, or subclass it and override
+    [`loss()`][torchdyno.objectives.Task.loss].
     """
 
     def __init__(

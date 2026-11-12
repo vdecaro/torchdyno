@@ -27,15 +27,14 @@ if TYPE_CHECKING:
 class RLS:
     """Fit a linear readout on whatever reaches it, one sample at a time.
 
-    The readout is chosen as for :class:`~torchdyno.learners.Ridge`. Rows are
-    visited in order: every timestep of every sequence for time-aligned
-    features, one row per sequence for pooled ones. The first update starts
-    from ``W = 0`` and ``P = I / l2``, so one pass with ``forgetting=1`` gives
-    the ridge solution with penalty ``l2``. Later fits and updates continue from
-    the readout's weights and the kept ``P``, until :meth:`reset`. A bias is
-    fitted as the weight of a constant feature, so unlike
-    :class:`~torchdyno.learners.Ridge` it is penalised too. Each update costs
-    ``O(H²)``.
+    The readout is chosen as for [`Ridge`][torchdyno.learners.Ridge]. Rows are visited
+    in order: every timestep of every sequence for time-aligned features, one row per
+    sequence for pooled ones. The first update starts from ``W = 0`` and ``P = I / l2``,
+    so one pass with ``forgetting=1`` gives the ridge solution with penalty ``l2``.
+    Later fits and updates continue from the readout's weights and the kept ``P``, until
+    [`reset()`][torchdyno.learners.RLS.reset]. A bias is fitted as the weight of a
+    constant feature, so unlike [`Ridge`][torchdyno.learners.Ridge] it is penalised too.
+    Each update costs ``O(H²)``.
     """
 
     def __init__(
@@ -85,7 +84,7 @@ class RLS:
         Args:
             model: the model whose readout is set in place.
             train: batches of time-first ``(x, y)``, as for
-                :class:`~torchdyno.learners.Ridge`.
+                [`Ridge`][torchdyno.learners.Ridge].
             val: unused; accepted so every learner fits the same way.
 
         Returns:

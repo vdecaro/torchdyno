@@ -132,14 +132,13 @@ class ZOHDiagonal(nn.Module):
 class LinearDiagonalCell(Cell):
     """A linear recurrence on a diagonal: ``h' = a ⊙ h + s ⊙ (B u)``.
 
-    ``transition(u)`` gives ``(a, s)``, broadcastable to ``u.shape[:-1] +
-    (modes,)``: constant, as :class:`RingDiagonal` (LRU) and
-    :class:`ZOHDiagonal` (S4D) are, or computed from the input, as a selective
-    step is. ``input`` is ``B``. If ``a``, ``s`` or ``B u`` is complex, the
-    state is stored as the real ``[Re h; Im h]`` and ``state_size`` is twice
-    the number of modes; otherwise it is ``h`` itself. Because the recurrence
-    is linear, :class:`~torchdyno.sequence.Scan` can run it in parallel over
-    time.
+    ``transition(u)`` gives ``(a, s)``, broadcastable to ``u.shape[:-1] + (modes,)``:
+    constant, as [`RingDiagonal`][torchdyno.sequence.RingDiagonal] (LRU) and
+    [`ZOHDiagonal`][torchdyno.sequence.ZOHDiagonal] (S4D) are, or computed from the
+    input, as a selective step is. ``input`` is ``B``. If ``a``, ``s`` or ``B u`` is
+    complex, the state is stored as the real ``[Re h; Im h]`` and ``state_size`` is
+    twice the number of modes; otherwise it is ``h`` itself. Because the recurrence is
+    linear, [`Scan`][torchdyno.sequence.Scan] can run it in parallel over time.
     """
 
     def __init__(self, input: LinearMap, transition: nn.Module):

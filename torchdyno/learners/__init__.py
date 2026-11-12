@@ -1,4 +1,4 @@
-"""Learners: ``fit(model, train, val=None) -> FitResult``, see :class:`Learner`."""
+"""Learners: ``fit(model, train, val=None) -> FitResult``, see ``Learner``."""
 
 from .backprop import Backprop
 from .chain import Chain
