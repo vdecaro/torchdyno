@@ -70,9 +70,38 @@ jobs:
     uses: ./.github/workflows/tests.yaml
     secrets: inherit
 
+  examples:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --locked --no-default-groups --group test
+
+      # every example runs in seconds; data.py only builds their datasets
+      - name: Run examples
+        run: |
+          for path in examples/*.py; do
+            example=$(basename "$path" .py)
+            case "$example" in __init__|data) continue ;; esac
+            echo "::group::$example"
+            uv run --no-sync python -m "examples.$example"
+            echo "::endgroup::"
+          done
+
   deploy:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, lint, tests]
+    needs: [build, lint, tests, examples]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
