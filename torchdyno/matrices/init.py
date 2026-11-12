@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import (
     TYPE_CHECKING,
 )
@@ -63,6 +64,44 @@ def normal(std: float | Tensor) -> Init:
             return tensor.mul_(std.to(tensor.device))
         nn.init.normal_(_real(tensor), 0.0, std)
         return tensor
+
+    return init
+
+
+def polar(
+    magnitude: tuple[float, float], phase: tuple[float, float] = (0.0, 2 * math.pi)
+) -> Init:
+    """Initialise complex entries as ``r e^(iθ)``, ``r`` and ``θ`` uniform in ranges.
+
+    E.g. the eigenvalues of a complex diagonal reservoir, as in Pinna et al.,
+    "ParalESN: Enabling parallel information processing in Reservoir Computing"
+    (2026): ``magnitude[1] < 1`` keeps every mode stable. The modulus is uniform,
+    not the area, so draws are denser near the centre of the disc than on a
+    uniform disc.
+
+    Args:
+        magnitude: the range ``(low, high)`` of the modulus ``r``.
+        phase: the range ``(low, high)`` of the phase ``θ``, in radians.
+
+    Returns:
+        An in-place initialiser, which raises ``TypeError`` on a real tensor.
+
+    Raises:
+        ValueError: unless ``0 <= magnitude[0] <= magnitude[1]`` and
+            ``phase[0] <= phase[1]``.
+    """
+    if not 0.0 <= magnitude[0] <= magnitude[1]:
+        raise ValueError(f"Need 0 <= low <= high for magnitude, got {magnitude}.")
+    if not phase[0] <= phase[1]:
+        raise ValueError(f"Need low <= high for phase, got {phase}.")
+
+    def init(tensor: Tensor) -> Tensor:
+        if not tensor.is_complex():
+            raise TypeError(f"polar() draws complex entries, got {tensor.dtype}.")
+        with torch.no_grad():
+            r = torch.empty_like(tensor.real).uniform_(*magnitude)
+            theta = torch.empty_like(r).uniform_(*phase)
+            return tensor.copy_(torch.polar(r, theta))
 
     return init
 

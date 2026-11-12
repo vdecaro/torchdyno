@@ -11,6 +11,7 @@ from torchdyno.matrices import (
     SkewCoupling,
     cycle,
     normal,
+    polar,
     spectral,
     spectral_radius,
     to_dense,
@@ -243,6 +244,26 @@ def test_complex_initialisers_draw_both_parts():
     bounded = Dense(50, 50, init=uniform(0.3), dtype=torch.cfloat).dense()
     assert bounded.real.abs().max() <= 0.3 and bounded.imag.abs().max() <= 0.3
     assert bounded.imag.abs().max() > 0.25
+
+
+def test_polar_draws_moduli_and_phases_uniformly_on_their_ranges():
+    torch.manual_seed(0)
+    init = polar((0.4, 0.9), (0.5, 1.5))
+    lam = Diagonal(4000, init=init, dtype=torch.cfloat).diagonal()
+    assert lam.abs().min() >= 0.4 - 1e-6 and lam.abs().max() <= 0.9 + 1e-6
+    assert lam.angle().min() >= 0.5 - 1e-6 and lam.angle().max() <= 1.5 + 1e-6
+    assert lam.abs().mean().item() == pytest.approx(0.65, abs=0.01)
+    assert Dense(3, 5, init=init, dtype=torch.cdouble).weight.dtype == torch.float64
+
+
+def test_polar_rejects_empty_ranges_and_real_matrices():
+    for magnitude, phase in [((-0.1, 0.5), (0.0, 1.0)), ((0.9, 0.4), (0.0, 1.0))]:
+        with pytest.raises(ValueError, match="magnitude"):
+            polar(magnitude, phase)
+    with pytest.raises(ValueError, match="phase"):
+        polar((0.4, 0.9), (1.0, 0.0))
+    with pytest.raises(TypeError, match="complex"):
+        Diagonal(4, init=polar((0.4, 0.9)))
 
 
 @pytest.mark.parametrize("name", MATRICES)

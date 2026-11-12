@@ -76,7 +76,7 @@ details.
 
 | Level | Typical parts | Read next |
 |---|---|---|
-| Matrices | `Dense`, `Diagonal`, `BlockDiagonal`, `SkewCoupling`, and the initialisers `uniform`, `normal`, `cycle` and `spectral` | [Matrices](matrices.md) |
+| Matrices | `Dense`, `Diagonal`, `BlockDiagonal`, `SkewCoupling`, and the initialisers `uniform`, `normal`, `polar`, `cycle` and `spectral` | [Matrices](matrices.md) |
 | Sequence maps | `LeakyCell` and the other cells, `Recurrent` and `Scan`, `RandomConv`, `Stack`, `Concat`, `Sum` | [Sequence maps](sequence.md) |
 | Readout | `Last`, `Mean`, `Max`, `PPV` and kin, then `nn.Linear` | [Readout](readout.md) |
 | Objectives | `Accuracy`, `NRMSE` and other metrics, and the tasks that bundle them with a loss | [Objectives](objectives.md) |

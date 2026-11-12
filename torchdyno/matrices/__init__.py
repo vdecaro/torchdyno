@@ -20,6 +20,7 @@ from .diagonal import Diagonal
 from .init import (
     cycle,
     normal,
+    polar,
     spectral,
     uniform,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "SkewCoupling",
     "cycle",
     "normal",
+    "polar",
     "spectral",
     "spectral_radius",
     "to_dense",

@@ -64,18 +64,20 @@ all pairs, `"ring"` or an explicit list of `(i, j)` pairs.
 
 An initialiser is a callable that fills a tensor in place, as in
 `torch.nn.init`, so every `torch.nn.init` function works as one.
-TorchDyno adds four that build on it.
+TorchDyno adds five that build on it.
 
 | Initialiser | Draws |
 |---|---|
 | [`uniform()`][torchdyno.matrices.uniform] | `U(-scale, scale)`; `scale` may be a tensor that broadcasts to the matrix, e.g. one per input column |
 | [`normal()`][torchdyno.matrices.normal] | `N(0, std²)`, with the same option of a tensor of scales |
+| [`polar()`][torchdyno.matrices.polar] | complex entries `r e^(iθ)`, the modulus `r` and the phase `θ` uniform on their ranges, e.g. the eigenvalues of a complex diagonal reservoir |
 | [`cycle()`][torchdyno.matrices.cycle] | a ring: unit `i` feeds unit `i + 1`, every connection of one weight |
 | [`spectral()`][torchdyno.matrices.spectral] | the draw of another initialiser, rescaled to a spectral radius |
 
 [`spectral()`][torchdyno.matrices.spectral] wraps another initialiser, which is how a
 reservoir gets its spectral radius whatever its sparsity or distribution.
-Complex matrices draw their real and imaginary parts independently.
+Complex matrices draw their real and imaginary parts independently, except
+under [`polar()`][torchdyno.matrices.polar], which draws a modulus and a phase.
 
 ```python
 from torchdyno.matrices import cycle, normal, spectral, spectral_radius, uniform
