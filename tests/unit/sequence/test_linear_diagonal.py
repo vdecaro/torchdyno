@@ -1,4 +1,4 @@
-"""LRU and S4D against loops written from their recurrences."""
+"""LRU, S4D and ParalESN against loops written from their recurrences."""
 
 import math
 
@@ -9,10 +9,15 @@ from torch import nn
 
 from tests.unit.compositions import (
     lru,
+    paralesn,
     s4d,
 )
-from torchdyno.matrices import Dense
+from torchdyno.matrices import (
+    Dense,
+    Diagonal,
+)
 from torchdyno.sequence import (
+    LeakyDiagonal,
     LinearDiagonalCell,
     Recurrent,
     RingDiagonal,
@@ -53,6 +58,27 @@ def test_s4d():
     torch.testing.assert_close(
         layer(x), _loop(a_bar, (a_bar - 1) / a, w_in, x), rtol=0, atol=1e-10
     )
+
+
+def test_paralesn():
+    torch.manual_seed(0)
+    layer = paralesn(features=3, modes=6, leak=0.3, dtype=DTYPE)
+    lam, w_in = layer.cell.transition.diagonal.diagonal(), layer.cell.input.dense()
+    x = torch.randn(25, 4, 3, dtype=DTYPE)
+    expected = _loop(0.7 + 0.3 * lam, 0.3, w_in, x)
+    torch.testing.assert_close(layer(x), expected, rtol=0, atol=1e-10)
+    torch.testing.assert_close(Scan(layer.cell)(x), expected)
+
+
+def test_leaky_diagonal_checks_its_leak():
+    diagonal = Diagonal(4, dtype=torch.cfloat)
+    for leak in (0.0, 1.5, torch.tensor([0.5, 0.5, 0.5, 1.2])):
+        with pytest.raises(ValueError, match=r"\(0, 1\]"):
+            LeakyDiagonal(diagonal, leak)
+    with pytest.raises(ValueError, match="leak has width 3"):
+        LeakyDiagonal(diagonal, torch.full((3,), 0.5))
+    per_mode = LeakyDiagonal(diagonal, torch.full((4,), 0.5))
+    assert "leak" in dict(per_mode.named_buffers())
 
 
 def test_ring_draws_magnitudes_and_phases_within_bounds():
@@ -137,7 +163,14 @@ class Selective(nn.Module):
         return a, 1 - a
 
 
-@pytest.mark.parametrize("make", [lambda: RealDiagonal(5), lambda: Selective(2, 5)])
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: RealDiagonal(5),
+        lambda: Selective(2, 5),
+        lambda: LeakyDiagonal(Diagonal(5, bound=torch.tanh, dtype=DTYPE), 0.3),
+    ],
+)
 @pytest.mark.parametrize("layer", [Recurrent, Scan])
 def test_real_and_input_dependent_transitions_run_in_both_layers(make, layer):
     torch.manual_seed(0)

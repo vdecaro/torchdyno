@@ -1,4 +1,4 @@
-"""Linear diagonal recurrences and their transitions (LRU, S4D)."""
+"""Linear diagonal recurrences and their transitions (LRU, S4D, ParalESN)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,10 @@ from torchdyno.sequence.cells.base import (
 if TYPE_CHECKING:
     from torch import Tensor
 
-    from torchdyno.matrices import LinearMap
+    from torchdyno.matrices import (
+        Diagonal,
+        LinearMap,
+    )
 
 
 class RingDiagonal(nn.Module):
@@ -129,16 +132,70 @@ class ZOHDiagonal(nn.Module):
         return torch.exp(dt * a), scale.to(a.dtype)
 
 
+class LeakyDiagonal(nn.Module):
+    """A diagonal ``Λ`` behind a leak: ``a = (1 - τ) + τ λ`` and ``s = τ``.
+
+    The recurrence is then ``h' = (1 - τ) h + τ (Λ h + B u)``, a leaky echo state
+    network whose reservoir is diagonal and linear, as in Pinna et al., "ParalESN:
+    Enabling parallel information processing in Reservoir Computing" (2026). Draw a
+    complex ``Λ`` with [`polar()`][torchdyno.matrices.polar]; if every ``|λ| < 1``,
+    so is every ``|a|``. Unlike [`RingDiagonal`][torchdyno.sequence.RingDiagonal],
+    nothing keeps ``Λ`` stable under training: freeze it, as a reservoir is.
+    """
+
+    leak: float | Tensor
+
+    def __init__(self, diagonal: Diagonal, leak: float | Tensor = 1.0):
+        """Initializes the transition.
+
+        Args:
+            diagonal: the diagonal ``Λ``, real or complex.
+            leak: the leak rate ``τ``: a constant, or a per-mode tensor kept as
+                a buffer.
+
+        Raises:
+            ValueError: if the leak is outside ``(0, 1]`` or does not match the
+                diagonal.
+        """
+        super().__init__()
+        rate = torch.as_tensor(leak)
+        if not torch.all((rate > 0) & (rate <= 1)):
+            raise ValueError(f"leak must be in (0, 1], got {leak}.")
+        if isinstance(leak, torch.Tensor) and leak.numel() != 1:
+            _width("leak", leak.shape[-1], diagonal.out_features)
+        self.diagonal = diagonal
+        if isinstance(leak, torch.Tensor):
+            self.register_buffer("leak", leak)
+        else:
+            self.leak = leak
+
+    def forward(self, u: Tensor | None = None) -> tuple[Tensor, Tensor]:  # noqa: ARG002
+        """The multiplier and the input scale.
+
+        Args:
+            u: the input; unused, as the transition does not depend on it.
+
+        Returns:
+            ``((1 - τ) + τ λ, τ)``: the first of shape ``(size,)``, the second
+            broadcastable to it.
+        """
+        lam = self.diagonal.diagonal()
+        leak = torch.as_tensor(self.leak, dtype=lam.real.dtype, device=lam.device)
+        return 1 - leak + leak * lam, leak
+
+
 class LinearDiagonalCell(Cell):
     """A linear recurrence on a diagonal: ``h' = a ⊙ h + s ⊙ (B u)``.
 
     ``transition(u)`` gives ``(a, s)``, broadcastable to ``u.shape[:-1] + (modes,)``:
-    constant, as [`RingDiagonal`][torchdyno.sequence.RingDiagonal] (LRU) and
-    [`ZOHDiagonal`][torchdyno.sequence.ZOHDiagonal] (S4D) are, or computed from the
-    input, as a selective step is. ``input`` is ``B``. If ``a``, ``s`` or ``B u`` is
-    complex, the state is stored as the real ``[Re h; Im h]`` and ``state_size`` is
-    twice the number of modes; otherwise it is ``h`` itself. Because the recurrence is
-    linear, [`Scan`][torchdyno.sequence.Scan] can run it in parallel over time.
+    constant, as [`RingDiagonal`][torchdyno.sequence.RingDiagonal] (LRU),
+    [`ZOHDiagonal`][torchdyno.sequence.ZOHDiagonal] (S4D) and
+    [`LeakyDiagonal`][torchdyno.sequence.LeakyDiagonal] (ParalESN) are, or computed
+    from the input, as a selective step is. ``input`` is ``B``. If ``a``, ``s`` or
+    ``B u`` is complex, the state is stored as the real ``[Re h; Im h]`` and
+    ``state_size`` is twice the number of modes; otherwise it is ``h`` itself.
+    Because the recurrence is linear, [`Scan`][torchdyno.sequence.Scan] can run it
+    in parallel over time.
     """
 
     def __init__(self, input: LinearMap, transition: nn.Module):

@@ -9,6 +9,7 @@ from torchdyno.matrices import (
     Diagonal,
     SkewCoupling,
     normal,
+    polar,
     spectral,
     uniform,
 )
@@ -17,6 +18,7 @@ from torchdyno.sequence import (
     EulerCell,
     Gate,
     LeakyCell,
+    LeakyDiagonal,
     LeakyField,
     LinearDiagonalCell,
     OscillatorCell,
@@ -78,6 +80,18 @@ def lru(features=2, modes=8, dtype=torch.float32):
     )
 
 
+def paralesn(features=2, modes=8, leak=0.5, dtype=torch.float32):
+    complex_dtype = dtype.to_complex()
+    return Recurrent(
+        LinearDiagonalCell(
+            input=Dense(features, modes, init=uniform(1.0), dtype=complex_dtype),
+            transition=LeakyDiagonal(
+                Diagonal(modes, init=polar((0.5, 0.9)), dtype=complex_dtype), leak
+            ),
+        )
+    )
+
+
 def s4d(features=2, modes=8, dtype=torch.float32):
     return Recurrent(
         LinearDiagonalCell(
@@ -118,6 +132,7 @@ COMPOSITIONS = {
     "scn": scn,
     "reservoir": reservoir,
     "lru": lru,
+    "paralesn": paralesn,
     "s4d": s4d,
     "cornn": cornn,
     "cfc": cfc,

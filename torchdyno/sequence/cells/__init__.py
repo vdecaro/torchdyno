@@ -16,6 +16,7 @@ from .euler import (
 from .feedback import FeedbackCell
 from .leaky import LeakyCell
 from .linear import (
+    LeakyDiagonal,
     LinearDiagonalCell,
     RingDiagonal,
     ZOHDiagonal,
@@ -29,6 +30,7 @@ __all__ = [
     "FeedbackCell",
     "Gate",
     "LeakyCell",
+    "LeakyDiagonal",
     "LeakyField",
     "LinearDiagonalCell",
     "OscillatorCell",

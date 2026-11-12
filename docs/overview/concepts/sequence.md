@@ -29,7 +29,7 @@ independently.
 | [`EulerCell`][torchdyno.sequence.EulerCell] | an Euler step `h' = h + ε ⊙ f(u, h)` of a vector field, e.g. [`LeakyField`][torchdyno.sequence.LeakyField] | AdaDiag, SCN |
 | [`OscillatorCell`][torchdyno.sequence.OscillatorCell] | coupled damped oscillators, positions and velocities side by side | coRNN |
 | [`ClosedFormCell`][torchdyno.sequence.ClosedFormCell] | a closed-form continuous-time update from a backbone | CfC |
-| [`LinearDiagonalCell`][torchdyno.sequence.LinearDiagonalCell] | `h' = a ⊙ h + s ⊙ (B u)`, with `(a, s)` from [`RingDiagonal`][torchdyno.sequence.RingDiagonal] or [`ZOHDiagonal`][torchdyno.sequence.ZOHDiagonal], or computed from the input | LRU, S4D |
+| [`LinearDiagonalCell`][torchdyno.sequence.LinearDiagonalCell] | `h' = a ⊙ h + s ⊙ (B u)`, with `(a, s)` from [`RingDiagonal`][torchdyno.sequence.RingDiagonal], [`ZOHDiagonal`][torchdyno.sequence.ZOHDiagonal] or [`LeakyDiagonal`][torchdyno.sequence.LeakyDiagonal], or computed from the input | LRU, S4D, ParalESN |
 | [`FeedbackCell`][torchdyno.sequence.FeedbackCell] | any cell that also reads a readout of its own state | closed loops, FORCE |
 
 Each cell checks that its matrices match the state at construction, and raises
@@ -133,19 +133,28 @@ print(cornn(x).shape, cfc(x).shape)  # (100, 4, 64) (100, 4, 32)
 `h' = a ⊙ h + s ⊙ (B u)`. Its `transition` supplies `(a, s)`:
 [`RingDiagonal`][torchdyno.sequence.RingDiagonal] draws stable complex multipliers
 (LRU), [`ZOHDiagonal`][torchdyno.sequence.ZOHDiagonal] discretises a diagonal
-continuous system (S4D), and a module of your own can compute them from the
-input. When anything is complex the state is stored as real `[Re h; Im h]`,
+continuous system (S4D), [`LeakyDiagonal`][torchdyno.sequence.LeakyDiagonal] puts
+any [`Diagonal`][torchdyno.matrices.Diagonal] behind a leak, `a = (1 - τ) + τ λ`
+and `s = τ`, for a reservoir with a linear diagonal recurrence (ParalESN), and a
+module of your own can compute them from the input. When anything is complex the state is stored as real `[Re h; Im h]`,
 so `state_size` is twice the number of modes. Complex storage keeps ordinary
 real-valued readouts and losses working on the states.
 
 ```python
-from torchdyno.sequence import LinearDiagonalCell, RingDiagonal, Scan
+from torchdyno.matrices import polar
+from torchdyno.sequence import LeakyDiagonal, LinearDiagonalCell, RingDiagonal, Scan
 
 lru = LinearDiagonalCell(
     input=Dense(2, 32, dtype=torch.cfloat),
     transition=RingDiagonal(32, r_min=0.4, r_max=0.99),
 )
 print(lru.state_size)  # 64: 32 complex modes, stored as real and imaginary
+
+eigenvalues = Diagonal(32, init=polar((0.5, 0.9)), dtype=torch.cfloat)
+reservoir = LinearDiagonalCell(
+    input=Dense(2, 32, init=uniform(1.0), dtype=torch.cfloat),
+    transition=LeakyDiagonal(eigenvalues, leak=0.5),
+).requires_grad_(False)
 ```
 
 ### Closed loops
