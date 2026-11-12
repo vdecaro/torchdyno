@@ -87,29 +87,26 @@ rest of the library works with it. [Writing your own parts](../advanced/custom-p
 write one. To see the parts at work first, follow
 [Read out a reservoir](../getting-started/first-reservoir.md).
 
-<div class="grid cards" markdown>
+<div class="index-list" markdown>
 
--   **[Matrices](matrices.md)**
+1.  [Matrices](matrices.md)
 
-    Structured matrices, their initialisers and bounds, and reading and
-    updating any matrix through its dense form.
+    Structured matrices, their initialisers and bounds, and reading and updating any matrix through its dense form.
 
--   **[Sequence maps](sequence.md)**
+2.  [Sequence maps](sequence.md)
 
-    Cells, the layers that run them over time, random convolutions, and
-    the ways to combine them.
+    Cells, the layers that run them over time, random convolutions, and the ways to combine them.
 
--   **[Readout](readout.md)**
+3.  [Readout](readout.md)
 
     Pooling a sequence over time, and the linear map to outputs.
 
--   **[Objectives](objectives.md)**
+4.  [Objectives](objectives.md)
 
     Metrics, tasks, and scoring a model over a loader.
 
--   **[Learners](learners.md)**
+5.  [Learners](learners.md)
 
-    Ridge regression, recursive least squares, FORCE, backprop,
-    intrinsic plasticity and quantile biases, alone or chained.
+    Ridge regression, recursive least squares, FORCE, backprop, intrinsic plasticity and quantile biases, alone or chained.
 
 </div>
