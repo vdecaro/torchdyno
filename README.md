@@ -18,11 +18,11 @@ TorchDyno is designed for researchers and practitioners studying unconventional 
 
 ## Key features
 
-- **Compose models:** a model is an `nn.Sequential` of parts from [four levels](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/index.html): weight matrices, sequence processing, readout and objectives. Each part is replaceable on its own.
-- **Structure the weights:** use dense, diagonal, block-diagonal and skew-symmetric [matrices](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/matrices.html), each with its own initialisers and spectral scaling. `nn.Linear` works anywhere a matrix is expected.
-- **Process sequences:** run any [recurrent cell](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/sequence.html) step by step or with a parallel scan, use ROCKET and MiniRocket kernels, and combine layers in series, side by side, residually, reversed or in a closed loop.
-- **Fit without gradients:** use closed-form and online [learners](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/learners.html), alone or chained, next to backprop.
-- **Handle real data:** feed [sequences of different lengths](https://torchdyno.readthedocs.io/en/latest/source/overview/advanced/variable-length.html) in one batch, and run [benchmarks](https://torchdyno.readthedocs.io/en/latest/source/overview/advanced/benchmarks.html) across seeds on NARMA, Mackey-Glass, Lorenz, memory capacity and UCR/UEA data.
+- **Compose models:** a model is an `nn.Sequential` of parts from [four levels](https://torchdyno.readthedocs.io/en/latest/overview/concepts/): weight matrices, sequence processing, readout and objectives. Each part is replaceable on its own.
+- **Structure the weights:** use dense, diagonal, block-diagonal and skew-symmetric [matrices](https://torchdyno.readthedocs.io/en/latest/overview/concepts/matrices/), each with its own initialisers and spectral scaling. `nn.Linear` works anywhere a matrix is expected.
+- **Process sequences:** run any [recurrent cell](https://torchdyno.readthedocs.io/en/latest/overview/concepts/sequence/) step by step or with a parallel scan, use ROCKET and MiniRocket kernels, and combine layers in series, side by side, residually, reversed or in a closed loop.
+- **Fit without gradients:** use closed-form and online [learners](https://torchdyno.readthedocs.io/en/latest/overview/concepts/learners/), alone or chained, next to backprop.
+- **Handle real data:** feed [sequences of different lengths](https://torchdyno.readthedocs.io/en/latest/overview/advanced/variable-length/) in one batch, and run [benchmarks](https://torchdyno.readthedocs.io/en/latest/overview/advanced/benchmarks/) across seeds on NARMA, Mackey-Glass, Lorenz, memory capacity and UCR/UEA data.
 
 ## Fitted and trained
 
@@ -32,7 +32,7 @@ TorchDyno is designed for researchers and practitioners studying unconventional 
 
 Intrinsic plasticity can adapt a reservoir first, without gradients. Nothing is backpropagated through time, so a fit takes seconds.
 
-**End-to-end training** trains every parameter that requires a gradient. Freeze any part with `requires_grad_(False)` to train the rest around it. The [benchmark guide](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/benchmark-across-seeds.html) compares the two on the same model and seeds.
+**End-to-end training** trains every parameter that requires a gradient. Freeze any part with `requires_grad_(False)` to train the rest around it. The [benchmark guide](https://torchdyno.readthedocs.io/en/latest/overview/getting-started/benchmark-across-seeds/) compares the two on the same model and seeds.
 
 ## Installation
 
@@ -48,7 +48,7 @@ Or add it to a uv project:
 uv add torchdyno
 ```
 
-PyTorch is installed with it. See the [installation guide](https://torchdyno.readthedocs.io/en/latest/source/overview/install.html) to choose a CPU or CUDA build, and for development setup.
+PyTorch is installed with it. See the [installation guide](https://torchdyno.readthedocs.io/en/latest/overview/install/) to choose a CPU or CUDA build, and for development setup.
 
 ## Quickstart
 
@@ -108,39 +108,39 @@ To adapt this experiment, swap any part on its own:
 - three reservoirs in a `Stack`;
 - `IntrinsicPlasticity` chained before the ridge readout.
 
-Continue with [reading out a reservoir](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/first-reservoir.html) and [training a model end to end](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/train-end-to-end.html).
+Continue with [reading out a reservoir](https://torchdyno.readthedocs.io/en/latest/overview/getting-started/first-reservoir/) and [training a model end to end](https://torchdyno.readthedocs.io/en/latest/overview/getting-started/train-end-to-end/).
 
 ## Examples
 
 Each example composes a well-known model from TorchDyno's parts, fits it and prints its score, in seconds:
 
 - **Reservoirs:**
-  - [echo state network](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/esn.html);
-  - [deep echo state network](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/deep_esn.html);
-  - [intrinsic plasticity](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/esn_plasticity.html).
+  - [echo state network](https://torchdyno.readthedocs.io/en/latest/overview/examples/esn/);
+  - [deep echo state network](https://torchdyno.readthedocs.io/en/latest/overview/examples/deep_esn/);
+  - [intrinsic plasticity](https://torchdyno.readthedocs.io/en/latest/overview/examples/esn_plasticity/).
 - **Online learning:**
-  - [recursive least squares in closed loop](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/rls_forcing.html);
-  - [FORCE](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/force.html).
+  - [recursive least squares in closed loop](https://torchdyno.readthedocs.io/en/latest/overview/examples/rls_forcing/);
+  - [FORCE](https://torchdyno.readthedocs.io/en/latest/overview/examples/force/).
 - **Trained recurrent models:**
-  - [AdaDiag](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/adadiag.html);
-  - [SCN](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/scn.html);
-  - [coRNN](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/cornn.html);
-  - [CfC](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/cfc.html).
+  - [AdaDiag](https://torchdyno.readthedocs.io/en/latest/overview/examples/adadiag/);
+  - [SCN](https://torchdyno.readthedocs.io/en/latest/overview/examples/scn/);
+  - [coRNN](https://torchdyno.readthedocs.io/en/latest/overview/examples/cornn/);
+  - [CfC](https://torchdyno.readthedocs.io/en/latest/overview/examples/cfc/).
 - **State space models:**
-  - [LRU](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/lru.html);
-  - [S4D](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/s4d.html).
+  - [LRU](https://torchdyno.readthedocs.io/en/latest/overview/examples/lru/);
+  - [S4D](https://torchdyno.readthedocs.io/en/latest/overview/examples/s4d/).
 - **Random convolutions:**
-  - [ROCKET](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/rocket.html);
-  - [MiniRocket](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/minirocket.html).
-- **Comparisons:** [readout, frozen and trained](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/conditions.html), one model trained three ways on the same seeds.
+  - [ROCKET](https://torchdyno.readthedocs.io/en/latest/overview/examples/rocket/);
+  - [MiniRocket](https://torchdyno.readthedocs.io/en/latest/overview/examples/minirocket/).
+- **Comparisons:** [readout, frozen and trained](https://torchdyno.readthedocs.io/en/latest/overview/examples/conditions/), one model trained three ways on the same seeds.
 
 Runnable source is available in [`examples/`](examples/). Run one from the repository root with `python -m examples.<name>`, for example `python -m examples.esn`.
 
 ## Documentation
 
-- [Getting started](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/index.html): a reservoir read out by ridge, a model trained end to end, and benchmarks across seeds.
-- [Core concepts](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/index.html): matrices, sequence processing, readout, objectives and learners.
-- [API reference](https://torchdyno.readthedocs.io/en/latest/source/api/index.html): public modules and interfaces.
+- [Getting started](https://torchdyno.readthedocs.io/en/latest/overview/getting-started/): a reservoir read out by ridge, a model trained end to end, and benchmarks across seeds.
+- [Core concepts](https://torchdyno.readthedocs.io/en/latest/overview/concepts/): matrices, sequence processing, readout, objectives and learners.
+- [API reference](https://torchdyno.readthedocs.io/en/latest/reference/torchdyno/): public modules and interfaces.
 - [Changelog](CHANGELOG.md): release history.
 
 ## Contributing
