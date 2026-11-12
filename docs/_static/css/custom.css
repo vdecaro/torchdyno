@@ -318,3 +318,8 @@
     --md-scroll-margin:6rem;
   }
 }
+
+/* The site name keeps the weight of the page title that replaces it on scroll. */
+.md-header__topic:first-child {
+  font-weight: 400;
+}
