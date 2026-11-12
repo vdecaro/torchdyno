@@ -113,6 +113,17 @@ html_sidebars = {"**": ["sidebar-nav-bs", "sidebar-ethical-ads"]}
 html_scaled_image_link = False
 
 
+def landing_page_template(app, pagename, templatename, context, doctree):
+    """Render the root document with the standalone landing template."""
+    if pagename == "index":
+        return "index.html"
+    return None
+
+
+def setup(app):
+    app.connect("html-page-context", landing_page_template)
+
+
 
 def filter_out_undoc_class_members(member_name, class_name, module_name):
     module = import_module(module_name)
