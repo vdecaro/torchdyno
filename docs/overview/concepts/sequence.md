@@ -268,6 +268,24 @@ bidirectional layer reads a sequence both ways. `Reverse` shifts padding at
 the end of a shorter sequence to the front, where the layer holds its initial
 state over it.
 
+## Mixing units
+
+[`Mix`][torchdyno.sequence.Mix] convolves across the units at every step: a
+kernel of `kernel_size` neighbouring units, the same at every step, maps
+`(T, B, channels · units)` to `(T, B, units)`. `channels` counts the blocks of
+units side by side in the features, so `channels=2` reads the `[Re h; Im h]`
+of a complex linear diagonal cell and computes `Re(w * h) + c` for a complex
+kernel `w`. A diagonal recurrence leaves its units uncoupled; `Mix` couples
+neighbours after every step, so the recurrence still runs in parallel. Followed
+by `nn.Tanh()`, it is the nonlinearity of ParalESN, which stacks such layers.
+
+```python
+from torchdyno.sequence import Mix
+
+layer = nn.Sequential(Scan(reservoir), Mix(channels=2, kernel_size=3), nn.Tanh())
+print(layer(x).shape)  # (100, 4, 32): one real value per mode
+```
+
 ## Random convolutions
 
 [`RandomConv`][torchdyno.sequence.RandomConv] holds fixed random kernels as buffers

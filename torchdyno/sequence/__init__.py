@@ -31,6 +31,7 @@ from .convolution import (
     minirocket,
     rocket,
 )
+from .mixing import Mix
 from .recurrent import (
     Recurrent,
     Scan,
@@ -53,6 +54,7 @@ __all__ = [
     "LeakyDiagonal",
     "LeakyField",
     "LinearDiagonalCell",
+    "Mix",
     "OscillatorCell",
     "RandomConv",
     "Recurrent",
