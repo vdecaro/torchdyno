@@ -1,10 +1,9 @@
-// A leaky reservoir driven by a slow signal, drawn as a raster of its states.
+// A leaky reservoir driven by a slow signal, drawn as one crisp row per unit.
 (() => {
   const canvas = document.querySelector(".td-states");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
-  // A seeded generator, so every visit shows the same reservoir.
   let seed = 7;
   const rand = () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -14,17 +13,15 @@
   };
   const uniform = () => 2 * rand() - 1;
 
-  const units = 64;
-  const density = 0.1;
-  const leak = 0.25;
-  // By the circular law, a sparse uniform matrix has a spectral radius of
-  // about sqrt(units * density / 3); scale it to 0.95.
+  const units = 32;
+  const density = 0.15;
+  const leak = 0.3;
   const scale = 0.95 / Math.sqrt((units * density) / 3);
   const recurrent = Array.from({ length: units }, () =>
     Array.from({ length: units }, () => (rand() < density ? uniform() * scale : 0)),
   );
-  const inputWeights = Array.from({ length: units }, uniform);
-  const frequency = 0.11;
+  const inputWeights = Array.from({ length: units }, () => uniform() * 1.2);
+  const frequency = 0.1;
   const input = (t) => Math.sin(t * frequency) * (0.7 + 0.3 * Math.sin(t * 0.017));
 
   let state = new Float64Array(units);
@@ -41,8 +38,7 @@
     return { u, h: next };
   };
 
-  // Order the rows by each unit's phase against the input, so the response
-  // reads as bands rather than noise.
+  // order the rows by each unit's phase against the input
   const sin = new Float64Array(units);
   const cos = new Float64Array(units);
   for (let k = 0; k < 600; k++) {
@@ -56,12 +52,8 @@
     (a, b) => Math.atan2(sin[a], cos[a]) - Math.atan2(sin[b], cos[b]),
   );
 
-  const columns = 160;
+  const columns = 120;
   const history = Array.from({ length: columns }, step);
-  const raster = document.createElement("canvas");
-  raster.width = columns;
-  raster.height = units;
-  const pixels = raster.getContext("2d").createImageData(columns, units);
 
   let colours;
   const readColours = () => {
@@ -73,7 +65,8 @@
     colours = {
       high: rgb("--td-state-high"),
       low: rgb("--td-state-low"),
-      signal: style.getPropertyValue("--md-default-fg-color--light"),
+      label: style.getPropertyValue("--md-default-fg-color--light"),
+      font: getComputedStyle(document.body).fontFamily,
     };
   };
 
@@ -84,39 +77,41 @@
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   };
 
+  // one shared scale: strong units saturate, quiet ones fade
+  const cell = (v) => {
+    const [r, g, b] = v > 0 ? colours.high : colours.low;
+    return `rgba(${r},${g},${b},${Math.min(1, Math.abs(v) / 0.6) ** 0.75})`;
+  };
+
   const draw = () => {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
-    const band = Math.round(height * 0.18);
     ctx.clearRect(0, 0, width, height);
+    const label = 16;
+    const gap = 1;
+    const rowHeight = (height - 2 * label - 10) / (units + 1);
+    const colWidth = width / columns;
 
-    // the input, on top
-    ctx.beginPath();
-    history.forEach(({ u }, k) =>
-      ctx.lineTo((k / (columns - 1)) * width, band / 2 - u * (band / 2 - 3)),
-    );
-    ctx.strokeStyle = colours.signal;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    ctx.font = `0.62rem ${colours.font}`;
+    ctx.fillStyle = colours.label;
+    ctx.textBaseline = "top";
+    ctx.fillText("input", 0, 0);
+    ctx.fillText(`${units} units, ordered by phase`, 0, label + rowHeight + 8);
+    ctx.textAlign = "right";
+    ctx.fillText("time →", width, height - label + 4);
+    ctx.textAlign = "left";
 
-    // the states, one row per unit, each scaled to its own range
-    const peak = new Float64Array(units).fill(1e-3);
-    for (const { h } of history) h.forEach((v, i) => (peak[i] = Math.max(peak[i], Math.abs(v))));
-    for (let k = 0; k < columns; k++) {
-      const { h } = history[k];
+    // whole-pixel cells, so translucent neighbours never overlap
+    history.forEach(({ u, h }, k) => {
+      const x = Math.round(k * colWidth);
+      const w = Math.round((k + 1) * colWidth) - x;
+      ctx.fillStyle = cell(u);
+      ctx.fillRect(x, label, w, Math.round(rowHeight) - gap);
       order.forEach((unit, row) => {
-        const v = h[unit] / peak[unit];
-        const [r, g, b] = v > 0 ? colours.high : colours.low;
-        const at = 4 * (row * columns + k);
-        pixels.data[at] = r;
-        pixels.data[at + 1] = g;
-        pixels.data[at + 2] = b;
-        pixels.data[at + 3] = Math.round(230 * Math.min(1, Math.abs(v)) ** 0.8);
+        ctx.fillStyle = cell(h[unit]);
+        ctx.fillRect(x, Math.round(2 * label + 10 + row * rowHeight), w, Math.round(rowHeight) - gap);
       });
-    }
-    raster.getContext("2d").putImageData(pixels, 0, 0);
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(raster, 0, band + 8, width, height - band - 8);
+    });
   };
 
   readColours();
@@ -126,7 +121,6 @@
     resize();
     draw();
   }).observe(canvas);
-  // the palette toggle switches the body's colour scheme
   new MutationObserver(() => {
     readColours();
     draw();
@@ -139,8 +133,7 @@
   }).observe(canvas);
   let frame = 0;
   const tick = () => {
-    // two frames per step keep the bands drifting slowly
-    if (visible && frame++ % 2 === 0) {
+    if (visible && frame++ % 3 === 0) {
       history.push(step());
       history.shift();
       draw();

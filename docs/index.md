@@ -27,9 +27,9 @@ pip install torchdyno
 
 <figure class="td-hero__live" markdown>
 <canvas class="td-states" aria-hidden="true"></canvas>
-<figcaption>A 64-unit leaky reservoir driven by the signal on top, simulated
-live in your browser. Each row is one unit's state over time: orange above
-zero, magenta below.</figcaption>
+<figcaption>A 32-unit leaky reservoir, simulated live in your browser. The top
+row is the input; each row below is one unit's state over time, orange above
+zero and magenta below, faint where the unit barely responds.</figcaption>
 </figure>
 
 </div>
