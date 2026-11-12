@@ -1,5 +1,7 @@
 <p align="center">
 <img width=200 alt="torchdyno-logo" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/logo.png"/>
+<br>
+<img width=450 alt="torchdyno-wordmark" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/wordmark.png"/>
 </p>
 
 ![PyPI - Version](https://img.shields.io/pypi/v/torchdyno)
@@ -8,95 +10,143 @@
 [![codecov](https://codecov.io/github/vdecaro/torchdyno/graph/badge.svg)](https://codecov.io/github/vdecaro/torchdyno)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/vdecaro/torchdyno/main.svg)](https://results.pre-commit.ci/latest/github/vdecaro/torchdyno/main)
 
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
-[![Import sorted with isort](https://img.shields.io/badge/isort-checked-brightgreen)](https://pycqa.github.io/isort/)
+**TorchDyno** is a PyTorch library for building models of temporal data from interchangeable parts, and training them with or without backpropagation. Reservoirs, state space models, oscillator and continuous-time networks, and random convolutions are all plain `nn.Sequential` compositions. Fit them with ridge regression, recursive least squares, FORCE, intrinsic plasticity or gradient descent.
 
-**TorchDyno** is a PyTorch-based library for dynamical systems.
+TorchDyno is designed for researchers and practitioners studying unconventional recurrent models and learning rules.
+
+## Key features
+
+- **Compose models:** a model is an `nn.Sequential` of parts from [four levels](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/index.html): weight matrices, sequence processing, readout and objectives. Each part is replaceable on its own.
+- **Structure the weights:** use dense, diagonal, block-diagonal and skew-symmetric [matrices](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/matrices.html), each with its own initialisers and spectral scaling. `nn.Linear` works anywhere a matrix is expected.
+- **Process sequences:** run any [recurrent cell](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/sequence.html) step by step or with a parallel scan, use ROCKET and MiniRocket kernels, and combine layers in series, side by side, residually, reversed or in a closed loop.
+- **Fit without gradients:** use closed-form and online [learners](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/learners.html), alone or chained, next to backprop.
+- **Handle real data:** feed [sequences of different lengths](https://torchdyno.readthedocs.io/en/latest/source/overview/advanced/variable-length.html) in one batch, and run [benchmarks](https://torchdyno.readthedocs.io/en/latest/source/overview/advanced/benchmarks.html) across seeds on NARMA, Mackey-Glass, Lorenz, memory capacity and UCR/UEA data.
+
+## Fitted and trained
+
+**Fitted readouts** freeze the dynamics and fit only the readout:
+- in closed form, with ridge regression;
+- online, with recursive least squares or FORCE.
+
+Intrinsic plasticity can adapt a reservoir first, without gradients. Nothing is backpropagated through time, so a fit takes seconds.
+
+**End-to-end training** trains every parameter that requires a gradient. Freeze any part with `requires_grad_(False)` to train the rest around it. The [benchmark guide](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/benchmark-across-seeds.html) compares the two on the same model and seeds.
 
 ## Installation
 
-To install TorchDyno and all its dependencies, you can run the following commands:
+TorchDyno is available on [PyPI](https://pypi.org/project/torchdyno/) and requires **Python `>=3.11,<3.15`**. Install it with pip:
 
 ```bash
-
 pip install torchdyno
-
 ```
 
-**N.B.** We **strongly** suggest the installation of TorchDyno in a virtual environment.
+Or add it to a uv project:
 
-## Usage
+```bash
+uv add torchdyno
+```
 
-A model is a plain `torch.nn.Sequential` of parts from four levels, each a subpackage:
+PyTorch is installed with it. See the [installation guide](https://torchdyno.readthedocs.io/en/latest/source/overview/install.html) to choose a CPU or CUDA build, and for development setup.
 
-1. `torchdyno.matrices`: weight matrices (dense, diagonal, block-diagonal, skew-symmetric couplings) and their initialisers.
-2. `torchdyno.sequence`: how a sequence is processed: recurrent cells, run step by step or by a parallel scan, random convolution kernels, and ways to combine them (in series, side by side, residual, reversed, in a closed loop).
-3. `torchdyno.readout`: pooling over time; an `nn.Linear` maps the result to outputs.
-4. `torchdyno.objectives`: the tasks and metrics a model is trained and scored for.
+## Quickstart
 
-`torchdyno.learners` fits a model: ridge regression, recursive least squares, FORCE, backprop and intrinsic plasticity, alone or chained.
-
-An assembly of diagonal modules with an adaptive step, trained end to end:
+Save this as `quickstart.py`. It builds an echo state network, a frozen random reservoir with a linear readout, and forecasts the Lorenz system one step ahead. Ridge regression fits the readout, keeping the penalty that scores best on the validation split.
 
 ```python
-import torch
 from torch import nn
 
-from torchdyno.learners import Backprop
-from torchdyno.matrices import Dense, Diagonal, SkewCoupling, normal
-from torchdyno.readout import Last
-from torchdyno.sequence import EulerCell, Gate, LeakyField, Recurrent
+from torchdyno import seed_all
+from torchdyno.benchmark import lorenz_benchmark
+from torchdyno.learners import Ridge, evaluate
+from torchdyno.matrices import Dense, spectral, uniform
+from torchdyno.sequence import LeakyCell, Recurrent
 
-H = 16 * 8
-model = nn.Sequential(
-    Recurrent(
-        EulerCell(
-            LeakyField(
-                recurrent=Diagonal(H, bound=torch.tanh),
-                coupling=SkewCoupling([16] * 8, pairs=8),
-                input=Dense(1, H, init=normal(H**-0.5)),
-                activation=torch.relu,
-            ),
-            step=Gate(1, H, bounds=(1e-5, 0.2)),
-        )
-    ),
-    Last(),
-    nn.Linear(H, 3),
-)
-Backprop(nn.CrossEntropyLoss(), lr=1e-2, epochs=30).fit(model, train)
+seed_all(0)
+data = lorenz_benchmark(length=2000, target_delay=1, washout=100)
+
+reservoir = Recurrent(
+    LeakyCell(
+        input=Dense(3, 300, init=uniform(1.0)),
+        recurrent=Dense(300, 300, init=spectral(uniform(1.0), 0.9)),
+        leak=0.5,
+    )
+).requires_grad_(False)
+esn = nn.Sequential(reservoir, nn.Linear(300, 3))
+
+result = Ridge(
+    l2=[1e-8, 1e-6, 1e-4],
+    washout=data.washout,
+    score_fn=data.task.primary,
+).fit(esn, data.train_loader, data.val_loader)
+print("chosen l2:", result.best)
+
+nrmse = evaluate(esn, data.eval_loader, data.task.primary, washout=data.washout)
+print(f"test NRMSE: {nrmse:.2e}")
 ```
 
-The same parts compose other models. ROCKET's features read out by ridge regression:
+The `Dense` matrices take their initialisers: `spectral` rescales the recurrent matrix to a spectral radius of 0.9. `Recurrent` runs the leaky cell over time, and the washout leaves out the first 100 steps, while the reservoir forgets its initial state.
 
-```python
-from torchdyno.learners import Ridge
-from torchdyno.objectives import Accuracy
-from torchdyno.readout import PPV, Max
-from torchdyno.sequence import Concat, RandomConv
+Run it:
 
-rocket = nn.Sequential(
-    RandomConv(channels=1, length=60, kernels=10_000),
-    Concat(PPV(), Max()),
-    nn.Linear(20_000, 3),
-)
-Ridge(
-    torch.logspace(-3, 3, 10).tolist(),
-    standardize=True,
-    score_fn=Accuracy(),
-).fit(rocket, train, val)
+```bash
+python quickstart.py
 ```
 
-[`examples/`](examples) composes echo state networks, AdaDiag, SCN, coRNN, CfC, LRU, S4D, ROCKET and MiniRocket, and a reservoir trained by FORCE to generate a wave. Run one from the repository root with `python -m examples.<name>`, e.g. `python -m examples.esn`.
+It prints the chosen penalty with its validation score, then the test error:
+
+```text
+chosen l2: {'l2': 1e-08, 'score': 0.0002468338643666357}
+test NRMSE: 4.89e-06
+```
+
+The last digits can differ across machines and PyTorch versions.
+
+To adapt this experiment, swap any part on its own:
+- a ring reservoir with `init=cycle(0.9)`;
+- three reservoirs in a `Stack`;
+- `IntrinsicPlasticity` chained before the ridge readout.
+
+Continue with [reading out a reservoir](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/first-reservoir.html) and [training a model end to end](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/train-end-to-end.html).
+
+## Examples
+
+Each example composes a well-known model from TorchDyno's parts, fits it and prints its score, in seconds:
+
+- **Reservoirs:**
+  - [echo state network](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/esn.html);
+  - [deep echo state network](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/deep_esn.html);
+  - [intrinsic plasticity](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/esn_plasticity.html).
+- **Online learning:**
+  - [recursive least squares in closed loop](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/rls_forcing.html);
+  - [FORCE](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/force.html).
+- **Trained recurrent models:**
+  - [AdaDiag](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/adadiag.html);
+  - [SCN](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/scn.html);
+  - [coRNN](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/cornn.html);
+  - [CfC](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/cfc.html).
+- **State space models:**
+  - [LRU](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/lru.html);
+  - [S4D](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/s4d.html).
+- **Random convolutions:**
+  - [ROCKET](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/rocket.html);
+  - [MiniRocket](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/minirocket.html).
+- **Comparisons:** [readout, frozen and trained](https://torchdyno.readthedocs.io/en/latest/source/overview/examples/conditions.html), one model trained three ways on the same seeds.
+
+Runnable source is available in [`examples/`](examples/). Run one from the repository root with `python -m examples.<name>`, for example `python -m examples.esn`.
 
 ## Documentation
 
-The documentation for TorchDyno can be found [here](https://torchdyno.readthedocs.io/en/latest/).
+- [Getting started](https://torchdyno.readthedocs.io/en/latest/source/overview/getting-started/index.html): a reservoir read out by ridge, a model trained end to end, and benchmarks across seeds.
+- [Core concepts](https://torchdyno.readthedocs.io/en/latest/source/overview/concepts/index.html): matrices, sequence processing, readout, objectives and learners.
+- [API reference](https://torchdyno.readthedocs.io/en/latest/source/api/index.html): public modules and interfaces.
+- [Changelog](CHANGELOG.md): release history.
 
-## Maintainers
+## Contributing
 
-TorchDyno is maintained by [Valerio De Caro](https://github.com/vdecaro).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, tests, documentation checks, and pull request guidelines.
 
-## Contact Us
+## Remarks
 
-If you want to get in touch with us, [drop us an e-mail](mailto:valerio@valeriodecaro.com?subject=[TorchDyno]%20Request%20for%20information)!
+If you use TorchDyno in your work, cite it with the metadata in [CITATION.cff](CITATION.cff), or with GitHub's *Cite this repository* button.
+
+TorchDyno is released under the [MIT License](LICENSE) and maintained by [Valerio De Caro](https://github.com/vdecaro). To get in touch, [drop me an e-mail](mailto:valerio@valeriodecaro.com?subject=[TorchDyno]%20Request%20for%20information)!
