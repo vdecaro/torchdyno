@@ -7,6 +7,7 @@ repo_name = "vdecaro/torchdyno"
 edit_uri = "edit/main/docs/"
 copyright = "Copyright &copy; Valerio De Caro"
 extra_css = ["_static/css/custom.css"]
+exclude_docs = "_overrides/"
 nav = [
   { "Home" = "index.md" },
   { "Overview" = [
@@ -56,7 +57,7 @@ nav = [
 ]
 
 [project.theme]
-custom_dir = "overrides"
+custom_dir = "docs/_overrides"
 logo = "_static/images/logo.png"
 favicon = "_static/favicon/favicon-32x32.png"
 features = [
