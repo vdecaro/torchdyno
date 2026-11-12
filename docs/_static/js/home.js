@@ -1,6 +1,6 @@
-// A small leaky reservoir driven by a modulated sine, drawn as it runs.
+// A leaky reservoir driven by a slow signal, drawn as a raster of its states.
 (() => {
-  const canvas = document.querySelector(".reservoir");
+  const canvas = document.querySelector(".td-states");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
@@ -14,9 +14,9 @@
   };
   const uniform = () => 2 * rand() - 1;
 
-  const units = 60;
+  const units = 64;
   const density = 0.1;
-  const leak = 0.3;
+  const leak = 0.25;
   // By the circular law, a sparse uniform matrix has a spectral radius of
   // about sqrt(units * density / 3); scale it to 0.95.
   const scale = 0.95 / Math.sqrt((units * density) / 3);
@@ -24,12 +24,11 @@
     Array.from({ length: units }, () => (rand() < density ? uniform() * scale : 0)),
   );
   const inputWeights = Array.from({ length: units }, uniform);
-  const shown = [0, 1, 2, 3, 4, 5];
+  const frequency = 0.11;
+  const input = (t) => Math.sin(t * frequency) * (0.7 + 0.3 * Math.sin(t * 0.017));
 
   let state = new Float64Array(units);
   let time = 0;
-  const input = (t) => 0.9 * Math.sin(t * 0.07) * Math.sin(t * 0.013 + 1);
-
   const step = () => {
     const u = input(time++);
     const next = new Float64Array(units);
@@ -39,88 +38,114 @@
       next[i] = (1 - leak) * state[i] + leak * Math.tanh(pre);
     }
     state = next;
-    return [u, ...shown.map((i) => state[i])];
+    return { u, h: next };
   };
 
-  const spacing = 2;
-  let history = [];
-  let length = 0;
+  // Order the rows by each unit's phase against the input, so the response
+  // reads as bands rather than noise.
+  const sin = new Float64Array(units);
+  const cos = new Float64Array(units);
+  for (let k = 0; k < 600; k++) {
+    const { h } = step();
+    for (let i = 0; i < units; i++) {
+      sin[i] += h[i] * Math.sin(time * frequency);
+      cos[i] += h[i] * Math.cos(time * frequency);
+    }
+  }
+  const order = [...Array(units).keys()].sort(
+    (a, b) => Math.atan2(sin[a], cos[a]) - Math.atan2(sin[b], cos[b]),
+  );
+
+  const columns = 160;
+  const history = Array.from({ length: columns }, step);
+  const raster = document.createElement("canvas");
+  raster.width = columns;
+  raster.height = units;
+  const pixels = raster.getContext("2d").createImageData(columns, units);
+
+  let colours;
+  const readColours = () => {
+    const style = getComputedStyle(document.body);
+    const rgb = (name) => {
+      const hex = style.getPropertyValue(name).trim();
+      return [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
+    };
+    colours = {
+      high: rgb("--td-state-high"),
+      low: rgb("--td-state-low"),
+      signal: style.getPropertyValue("--md-default-fg-color--light"),
+    };
+  };
 
   const resize = () => {
     const ratio = window.devicePixelRatio || 1;
     canvas.width = Math.round(canvas.clientWidth * ratio);
     canvas.height = Math.round(canvas.clientHeight * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    length = Math.ceil(canvas.clientWidth / spacing) + 1;
-    while (history.length < length) history.push(step());
-    history = history.slice(-length);
-  };
-
-  const hex = (name) => {
-    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return [1, 3, 5].map((k) => parseInt(value.slice(k, k + 2), 16));
-  };
-  const mix = (a, b, w) => `rgb(${a.map((x, k) => Math.round(x + (b[k] - x) * w)).join(",")})`;
-
-  const trace = (series, centre, amplitude, colour, width) => {
-    ctx.beginPath();
-    series.forEach((v, k) => ctx.lineTo(k * spacing, centre - v * amplitude));
-    ctx.strokeStyle = colour;
-    ctx.lineWidth = width;
-    ctx.stroke();
   };
 
   const draw = () => {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
+    const band = Math.round(height * 0.18);
     ctx.clearRect(0, 0, width, height);
-    ctx.lineJoin = "round";
-    const band = height * 0.22;
-    trace(
-      history.map((row) => row[0]),
-      band / 2 + 4,
-      band / 2,
-      getComputedStyle(document.documentElement).getPropertyValue("--input"),
-      1.5,
+
+    // the input, on top
+    ctx.beginPath();
+    history.forEach(({ u }, k) =>
+      ctx.lineTo((k / (columns - 1)) * width, band / 2 - u * (band / 2 - 3)),
     );
-    let peak = 1e-3;
-    for (const row of history) for (const v of row.slice(1)) peak = Math.max(peak, Math.abs(v));
-    const flame = hex("--flame");
-    const magenta = hex("--magenta");
-    const centre = band + (height - band) / 2;
-    const amplitude = ((height - band) / 2 - 6) / peak;
-    shown.forEach((_, k) =>
-      trace(
-        history.map((row) => row[k + 1]),
-        centre,
-        amplitude,
-        mix(flame, magenta, k / (shown.length - 1)),
-        2,
-      ),
-    );
+    ctx.strokeStyle = colours.signal;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // the states, one row per unit, each scaled to its own range
+    const peak = new Float64Array(units).fill(1e-3);
+    for (const { h } of history) h.forEach((v, i) => (peak[i] = Math.max(peak[i], Math.abs(v))));
+    for (let k = 0; k < columns; k++) {
+      const { h } = history[k];
+      order.forEach((unit, row) => {
+        const v = h[unit] / peak[unit];
+        const [r, g, b] = v > 0 ? colours.high : colours.low;
+        const at = 4 * (row * columns + k);
+        pixels.data[at] = r;
+        pixels.data[at + 1] = g;
+        pixels.data[at + 2] = b;
+        pixels.data[at + 3] = Math.round(230 * Math.min(1, Math.abs(v)) ** 0.8);
+      });
+    }
+    raster.getContext("2d").putImageData(pixels, 0, 0);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(raster, 0, band + 8, width, height - band - 8);
   };
 
-  for (let k = 0; k < 300; k++) step();
+  readColours();
   resize();
   draw();
   new ResizeObserver(() => {
     resize();
     draw();
   }).observe(canvas);
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  // the palette toggle switches the body's colour scheme
+  new MutationObserver(() => {
+    readColours();
+    draw();
+  }).observe(document.body, { attributes: true, attributeFilter: ["data-md-color-scheme"] });
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   let visible = true;
   new IntersectionObserver(([entry]) => {
     visible = entry.isIntersecting;
   }).observe(canvas);
-  const frame = () => {
-    if (visible) {
+  let frame = 0;
+  const tick = () => {
+    // two frames per step keep the bands drifting slowly
+    if (visible && frame++ % 2 === 0) {
       history.push(step());
       history.shift();
       draw();
     }
-    requestAnimationFrame(frame);
+    requestAnimationFrame(tick);
   };
-  requestAnimationFrame(frame);
+  requestAnimationFrame(tick);
 })();
