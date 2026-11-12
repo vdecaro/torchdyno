@@ -36,6 +36,7 @@ nav = [
       "overview/examples/index.md",
       "overview/examples/esn.md",
       "overview/examples/deep_esn.md",
+      "overview/examples/paralesn.md",
       "overview/examples/esn_plasticity.md",
       "overview/examples/rls_forcing.md",
       "overview/examples/force.md",

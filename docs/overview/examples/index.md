@@ -21,6 +21,10 @@ subdirectory of the repository.
 
     Three reservoirs run in series on the Lorenz system, read out over every layer's states.
 
+-   [ParalESN](paralesn.md)
+
+    Deep reservoir layers of linear complex modes, run by a parallel scan and mixed across modes, forecast the Lorenz system.
+
 -   [Intrinsic plasticity](esn_plasticity.md)
 
     Intrinsic plasticity adapts a saturated reservoir before its ridge readout.
