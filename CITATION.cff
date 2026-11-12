@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use TorchDyno in your work or research project, please cite it as below."
 title: "TorchDyno: neural dynamical systems for time series in PyTorch"
-version: 0.2.3
+version: 0.3.0
 url: "https://github.com/vdecaro/torchdyno"
 repository-code: "https://github.com/vdecaro/torchdyno"
 license: "MIT"

@@ -1,6 +1,6 @@
 [project]
 name = "torchdyno"
-version = "0.2.3"
+version = "0.3.0"
 description = "Neural dynamical systems for time series in PyTorch."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"

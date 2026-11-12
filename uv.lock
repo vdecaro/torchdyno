@@ -1315,7 +1315,7 @@ wheels = [
 
 [[package]]
 name = "torchdyno"
-version = "0.2.3"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "torch", version = "2.15.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
