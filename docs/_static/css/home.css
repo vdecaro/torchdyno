@@ -10,16 +10,15 @@
 }
 
 /* The text spans the graphic and its caption: the headline level with the
-   graphic's top, the buttons with the caption's bottom. The install command
-   sits under both columns, centred. */
+   graphic's top, the install command with the caption's bottom, centred in
+   its column. */
 .md-typeset .td-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   grid-template-areas:
     "text states"
-    "text caption"
-    "install install";
-  grid-template-rows: auto 1fr auto;
+    "text caption";
+  grid-template-rows: auto 1fr;
   column-gap: 2.5rem;
   margin: 1rem 0 2.5rem;
 }
@@ -28,10 +27,6 @@
   display: flex;
   flex-direction: column;
   grid-area: text;
-}
-
-.md-typeset .td-hero__text > p:last-child {
-  margin: auto 0 0;
 }
 
 .md-typeset .td-hero h1 {
@@ -54,8 +49,23 @@
   color: var(--md-default-fg-color--light);
 }
 
+.md-typeset .td-hero__actions > p {
+  margin: 0;
+}
+
 .md-typeset .td-hero .md-button {
   margin: 0.4rem 0.4rem 0 0;
+}
+
+.md-typeset .td-hero__install {
+  align-self: center;
+  margin-top: auto;
+  padding-top: 1.6rem;
+}
+
+.md-typeset .td-hero__install .highlight {
+  min-width: 16rem;
+  margin: 0;
 }
 
 .md-typeset .td-hero__live {
@@ -79,17 +89,6 @@
   color: var(--md-default-fg-color--light);
 }
 
-.md-typeset .td-hero__install {
-  grid-area: install;
-  justify-self: center;
-  margin-top: 2rem;
-}
-
-.md-typeset .td-hero__install .highlight {
-  min-width: 16rem;
-  margin: 0;
-}
-
 .md-typeset .td-hero ~ p {
   max-width: 38rem;
 }
@@ -100,29 +99,61 @@
   border-top: 0.05rem solid var(--md-default-fg-color--lightest);
 }
 
+/* The code panel stretches to the height of the list beside it. */
 .md-typeset .td-split {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 2rem;
-  align-items: start;
 }
 
-.md-typeset .td-split .highlight {
+.md-typeset .td-split .highlight,
+.md-typeset .td-split .highlight pre,
+.md-typeset .td-split .highlight pre > code {
+  height: 100%;
+  margin: 0;
+}
+
+.md-typeset .td-split .index-list > ol {
   margin-top: 0;
+  margin-bottom: 0;
 }
 
+.md-typeset .td-split .index-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Columns share their rows, so titles, text and links line up across them. */
 .md-typeset .td-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0.4rem 2rem;
+  column-gap: 2rem;
 }
 
 .md-typeset .td-columns--narrow {
   grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
 }
 
+.md-typeset .td-columns > div {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+}
+
+.md-typeset .td-columns--narrow > div {
+  grid-row: span 2;
+}
+
+.md-typeset .td-columns > div > * {
+  margin-top: 0;
+}
+
+.md-typeset .td-columns > div > :last-child {
+  margin-bottom: 1.2rem;
+}
+
 .md-typeset .td-columns h3 {
-  margin-top: 0.6em;
+  margin-bottom: 0.5em;
   font-size: 0.85rem;
 }
 
@@ -154,7 +185,7 @@
   }
 
   .md-typeset .td-hero {
-    grid-template-areas: "text" "states" "caption" "install";
+    grid-template-areas: "text" "states" "caption";
     row-gap: 1.5rem;
   }
 }

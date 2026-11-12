@@ -16,8 +16,20 @@ Compose reservoirs, state space models and ODE-based networks as plain
 `nn.Sequential` models. Fit the readout in closed form, learn online, or train
 everything by backprop.
 
+<div class="td-hero__actions" markdown>
+
 [Read out your first reservoir](overview/getting-started/first-reservoir.md){ .md-button .md-button--primary }
 [Install](overview/install.md){ .md-button }
+
+</div>
+
+<div class="td-hero__install" markdown>
+
+```bash
+pip install torchdyno
+```
+
+</div>
 
 </div>
 
@@ -27,14 +39,6 @@ everything by backprop.
 row is the input; each row below is one unit's state over time, orange above
 zero and magenta below, faint where the unit barely responds.</figcaption>
 </figure>
-
-<div class="td-hero__install" markdown>
-
-```bash
-pip install torchdyno
-```
-
-</div>
 
 </div>
 
@@ -155,7 +159,7 @@ Each example composes a known model, fits it and prints its score in seconds.
 
 <div markdown>
 
-### Trained recurrent networks
+### Trained RNNs
 
 - [AdaDiag](overview/examples/adadiag.md)
 - [SCN](overview/examples/scn.md)
