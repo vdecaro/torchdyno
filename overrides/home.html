@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Compose reservoirs, state space models and ODE-based networks as plain PyTorch modules, and fit them in closed form, online or by backprop." />
+    <title>TorchDyno | Neural dynamical systems for time series in PyTorch</title>
+    <link rel="icon" href="_static/favicon/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="_static/favicon/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet" />
+    <link rel="stylesheet" href="_static/css/home.css" />
+    <script src="_static/js/theme.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="wrap header">
+      <a class="brand" href="./">
+        <img src="_static/images/logo.png" width="44" height="44" alt="" />
+        <span>TorchDyno</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="overview/getting-started/">Get started</a>
+        <a href="overview/concepts/">Concepts</a>
+        <a href="overview/examples/">Examples</a>
+        <a href="reference/torchdyno/">API reference</a>
+        <a href="https://github.com/vdecaro/torchdyno">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="wrap hero" aria-labelledby="title">
+        <div class="hero-copy">
+          <h1 id="title">Neural dynamical systems, built from parts.</h1>
+          <p class="intro">
+            Compose reservoirs, state space models and ODE-based networks as plain
+            <code>nn.Sequential</code> models. Fit the readout in closed form, learn online, or
+            train everything by backprop.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="overview/getting-started/first-reservoir/"
+              >Read out your first reservoir</a
+            >
+            <a class="button" href="overview/install/">Install</a>
+          </div>
+          <p class="install"><code>pip install torchdyno</code></p>
+        </div>
+        <figure class="hero-live">
+          <canvas class="reservoir" aria-hidden="true"></canvas>
+          <figcaption>
+            A 60-unit leaky reservoir, simulated live in your browser. The grey line is the
+            input; the coloured lines are six of its units following it.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="wrap levels" aria-labelledby="levels-title">
+        <h2 id="levels-title">One model, four levels.</h2>
+        <p class="lead">
+          There is no model zoo. An echo state network is a cell, two matrices and a linear
+          readout, and every other model is another arrangement of the same parts.
+        </p>
+        <div class="levels-grid">
+          <pre class="composition" aria-label="An echo state network composed from parts"><code><span class="ln"><span>esn = nn.Sequential(</span></span>
+<span class="ln"><span>    Recurrent(LeakyCell(</span><span class="tag">sequence</span></span>
+<span class="ln"><span>        input=Dense(3, 300, init=uniform(1.0)),</span><span class="tag">matrices</span></span>
+<span class="ln"><span>        recurrent=Dense(300, 300,</span><span class="tag">matrices</span></span>
+<span class="ln"><span>            init=spectral(uniform(1.0), 0.9)),</span></span>
+<span class="ln"><span>        leak=0.5,</span></span>
+<span class="ln"><span>    )).requires_grad_(False),</span></span>
+<span class="ln"><span>    nn.Linear(300, 3),</span><span class="tag">readout</span></span>
+<span class="ln"><span>)</span></span>
+<span class="ln"><span>Ridge(l2=[1e-8, 1e-6]).fit(esn, train, val)</span><span class="tag">learners</span></span>
+<span class="ln"><span>evaluate(esn, test, NRMSE())</span><span class="tag">objectives</span></span></code></pre>
+          <ol class="level-list">
+            <li>
+              <a href="overview/concepts/matrices/">Matrices</a>
+              <p>
+                How a weight matrix is structured, initialised and applied: dense, diagonal,
+                block-diagonal, skew-symmetric or complex.
+              </p>
+            </li>
+            <li>
+              <a href="overview/concepts/sequence/">Sequence</a>
+              <p>
+                How a sequence is processed: a recurrent cell run step by step or by a parallel
+                scan, or random convolutions.
+              </p>
+            </li>
+            <li>
+              <a href="overview/concepts/readout/">Readout</a>
+              <p>Pooling over time, then a linear map to the outputs.</p>
+            </li>
+            <li>
+              <a href="overview/concepts/objectives/">Objectives</a>
+              <p>The task a model is fitted for, and the metrics it is scored by.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="wrap modes" aria-labelledby="modes-title">
+        <h2 id="modes-title">Fit it, or train it.</h2>
+        <div class="mode-grid">
+          <div>
+            <h3>Fitted, without gradients</h3>
+            <p>
+              Freeze the dynamics and fit the readout: ridge regression in closed form, recursive
+              least squares or FORCE online, with intrinsic plasticity to adapt the reservoir first.
+              A fit takes seconds.
+            </p>
+            <a href="overview/concepts/learners/">Learners</a>
+          </div>
+          <div>
+            <h3>Trained end to end</h3>
+            <p>
+              Backprop trains every parameter that requires a gradient. Freeze any part with
+              <code>requires_grad_(False)</code> and train the rest around it.
+            </p>
+            <a href="overview/getting-started/train-end-to-end/"
+              >Train a model end to end</a
+            >
+          </div>
+          <div>
+            <h3>Compared on the same seeds</h3>
+            <p>
+              Run one model three ways, readout only, frozen and fully trained, and report each
+              across seeds.
+            </p>
+            <a href="overview/getting-started/benchmark-across-seeds/"
+              >Benchmark across seeds</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap models" aria-labelledby="models-title">
+        <h2 id="models-title">Models made from the same parts.</h2>
+        <p class="lead">Each example composes a known model, fits it and prints its score in seconds.</p>
+        <div class="model-groups">
+          <div>
+            <h3>Reservoirs</h3>
+            <ul>
+              <li><a href="overview/examples/esn/">Echo state network</a></li>
+              <li><a href="overview/examples/deep_esn/">Deep echo state network</a></li>
+              <li><a href="overview/examples/esn_plasticity/">Intrinsic plasticity</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Online learning</h3>
+            <ul>
+              <li><a href="overview/examples/rls_forcing/">Recursive least squares</a></li>
+              <li><a href="overview/examples/force/">FORCE</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Trained recurrent networks</h3>
+            <ul>
+              <li><a href="overview/examples/adadiag/">AdaDiag</a></li>
+              <li><a href="overview/examples/scn/">SCN</a></li>
+              <li><a href="overview/examples/cornn/">coRNN</a></li>
+              <li><a href="overview/examples/cfc/">CfC</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>State space models</h3>
+            <ul>
+              <li><a href="overview/examples/lru/">LRU</a></li>
+              <li><a href="overview/examples/s4d/">S4D</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Random convolutions</h3>
+            <ul>
+              <li><a href="overview/examples/rocket/">ROCKET</a></li>
+              <li><a href="overview/examples/minirocket/">MiniRocket</a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap footer">
+      <span>TorchDyno, neural dynamical systems for time series in PyTorch</span>
+      <nav aria-label="Project links">
+        <a href="overview/install/">Install</a>
+        <a href="overview/advanced/">Advanced</a>
+        <a href="https://github.com/vdecaro/torchdyno/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/vdecaro/torchdyno">Source code</a>
+      </nav>
+    </footer>
+    <script src="_static/js/home.js"></script>
+  </body>
+</html>

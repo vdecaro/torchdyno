@@ -83,17 +83,19 @@ uv run pytest
 
 ## Documentation
 
-The documentation is built with Sphinx, treating warnings as errors:
+The documentation is built with Zensical in strict mode, so a broken link or cross-reference fails the build:
 
 ```bash
 make docs
 ```
 
-The pages are written to `docs/_build/html`. To find classes missing from the documentation, run:
+The pages are written to `site/`. To preview them while you edit, run:
 
 ```bash
-uv run --group docs make -C docs coverage
+uv run --group docs zensical serve
 ```
+
+and open <http://localhost:8000>. The API reference is generated from the docstrings, which are written in Markdown; Ruff's `D` rules flag public objects without one.
 
 ## Pre-commit Hooks
 

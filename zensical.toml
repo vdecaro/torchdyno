@@ -1,0 +1,123 @@
+[project]
+site_name = "TorchDyno"
+site_description = "Neural dynamical systems for time series in PyTorch."
+site_url = "https://torchdyno.readthedocs.io/en/latest/"
+repo_url = "https://github.com/vdecaro/torchdyno"
+repo_name = "vdecaro/torchdyno"
+edit_uri = "edit/main/docs/"
+copyright = "Copyright &copy; Valerio De Caro"
+extra_css = ["_static/css/custom.css"]
+nav = [
+  "index.md",
+  { "Overview" = [
+    "overview/index.md",
+    "overview/install.md",
+    { "Getting started" = [
+      "overview/getting-started/index.md",
+      "overview/getting-started/first-reservoir.md",
+      "overview/getting-started/train-end-to-end.md",
+      "overview/getting-started/benchmark-across-seeds.md"
+    ] },
+    { "Concepts" = [
+      "overview/concepts/index.md",
+      "overview/concepts/matrices.md",
+      "overview/concepts/sequence.md",
+      "overview/concepts/readout.md",
+      "overview/concepts/objectives.md",
+      "overview/concepts/learners.md"
+    ] },
+    { "Advanced" = [
+      "overview/advanced/index.md",
+      "overview/advanced/variable-length.md",
+      "overview/advanced/custom-parts.md",
+      "overview/advanced/benchmarks.md"
+    ] },
+    { "Examples" = [
+      "overview/examples/index.md",
+      "overview/examples/esn.md",
+      "overview/examples/deep_esn.md",
+      "overview/examples/esn_plasticity.md",
+      "overview/examples/rls_forcing.md",
+      "overview/examples/force.md",
+      "overview/examples/adadiag.md",
+      "overview/examples/scn.md",
+      "overview/examples/cornn.md",
+      "overview/examples/cfc.md",
+      "overview/examples/lru.md",
+      "overview/examples/s4d.md",
+      "overview/examples/rocket.md",
+      "overview/examples/minirocket.md",
+      "overview/examples/conditions.md"
+    ] }
+  ] },
+  { "Reference" = "reference/" },
+  { "Changelog" = "https://github.com/vdecaro/torchdyno/blob/main/CHANGELOG.md" },
+]
+
+[project.theme]
+custom_dir = "overrides"
+logo = "_static/images/logo.png"
+favicon = "_static/favicon/favicon-32x32.png"
+features = [
+  "navigation.tabs",
+  "navigation.indexes",
+  "content.code.copy",
+  "content.tabs.link",
+  "content.action.edit",
+]
+
+[project.theme.font]
+text = "Figtree"
+code = "JetBrains Mono"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.tables]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions."pymdownx.details"]
+[project.markdown_extensions."pymdownx.superfences"]
+[project.markdown_extensions."pymdownx.tabbed"]
+alternate_style = true
+[project.markdown_extensions."pymdownx.highlight"]
+[project.markdown_extensions."pymdownx.inlinehilite"]
+[project.markdown_extensions."pymdownx.emoji"]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"
+[project.markdown_extensions."pymdownx.snippets"]
+base_path = ["."]
+check_paths = true
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+members_order = "source"
+show_if_no_docstring = true
+inherited_members = false
+show_bases = true
+show_source = true
+separate_signature = true
+show_signature_annotations = false
+
+[project.plugins.api-autonav]
+modules = ["torchdyno"]
+nav_section_title = "Reference"

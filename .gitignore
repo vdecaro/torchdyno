@@ -68,7 +68,6 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
 
 # PyBuilder
 .pybuilder/
@@ -159,7 +158,6 @@ cython_debug/
 
 # personal
 *.DS_Store
-docs/source/api/reference/*
 
 # graphify
 .graphifyignore

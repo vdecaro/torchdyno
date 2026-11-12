@@ -1,5 +1,7 @@
-// Follow the light or dark theme chosen on the documentation pages.
+// Follow the light or dark palette chosen on the documentation pages.
 try {
-  const theme = localStorage.getItem("theme");
-  if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  const key = new URL(".", location).pathname + ".__palette";
+  const scheme = JSON.parse(localStorage.getItem(key))?.color?.scheme;
+  if (scheme === "default") document.documentElement.dataset.theme = "light";
+  if (scheme === "slate") document.documentElement.dataset.theme = "dark";
 } catch (e) {}
