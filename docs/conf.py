@@ -65,7 +65,7 @@ html_logo = "_static/images/logo.png"
 html_static_path = ["_static"]
 html_favicon = "_static/favicon/favicon-32x32.png"
 html_css_files = [
-    "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap",
+    "https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
     "css/custom.css",
 ]
 
