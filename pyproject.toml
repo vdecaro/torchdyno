@@ -1,7 +1,7 @@
 [project]
 name = "torchdyno"
 version = "0.2.3"
-description = "A PyTorch-based library for dynamical systems."
+description = "Neural dynamical systems for time series in PyTorch."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 license = "MIT"
