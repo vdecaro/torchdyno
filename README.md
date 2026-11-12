@@ -1,7 +1,7 @@
 <p align="center">
-<img width=200 alt="torchdyno-logo" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/logo.png"/>
+<img width=300 alt="torchdyno-logo" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/logo.png"/>
 <br>
-<img width=450 alt="torchdyno-wordmark" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/wordmark.png"/>
+<img width=300 alt="torchdyno-wordmark" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/wordmark.png"/>
 </p>
 
 ![PyPI - Version](https://img.shields.io/pypi/v/torchdyno)
