@@ -4,11 +4,13 @@
 <img width=300 alt="torchdyno-wordmark" src="https://raw.githubusercontent.com/vdecaro/torchdyno/refs/heads/main/docs/_static/images/wordmark.png"/>
 </p>
 
-![PyPI - Version](https://img.shields.io/pypi/v/torchdyno)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchdyno)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&)](https://github.com/pre-commit/pre-commit)
-[![codecov](https://codecov.io/github/vdecaro/torchdyno/graph/badge.svg)](https://codecov.io/github/vdecaro/torchdyno)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/vdecaro/torchdyno/main.svg)](https://results.pre-commit.ci/latest/github/vdecaro/torchdyno/main)
+<p align="center">
+<img alt="PyPI - Version" src="https://img.shields.io/pypi/v/torchdyno"/>
+<img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/torchdyno"/>
+<a href="https://github.com/pre-commit/pre-commit"><img alt="pre-commit" src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&"/></a>
+<a href="https://codecov.io/github/vdecaro/torchdyno"><img alt="codecov" src="https://codecov.io/github/vdecaro/torchdyno/graph/badge.svg"/></a>
+<a href="https://results.pre-commit.ci/latest/github/vdecaro/torchdyno/main"><img alt="pre-commit.ci status" src="https://results.pre-commit.ci/badge/github/vdecaro/torchdyno/main.svg"/></a>
+</p>
 
 **TorchDyno** is a PyTorch library for building models of temporal data from interchangeable parts, and training them with or without backpropagation. Reservoirs, state space models, oscillator and continuous-time networks, and random convolutions are all plain `nn.Sequential` compositions. Fit them with ridge regression, recursive least squares, FORCE, intrinsic plasticity or gradient descent.
 
