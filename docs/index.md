@@ -19,10 +19,6 @@ everything by backprop.
 [Read out your first reservoir](overview/getting-started/first-reservoir.md){ .md-button .md-button--primary }
 [Install](overview/install.md){ .md-button }
 
-```bash
-pip install torchdyno
-```
-
 </div>
 
 <figure class="td-hero__live" markdown>
@@ -31,6 +27,14 @@ pip install torchdyno
 row is the input; each row below is one unit's state over time, orange above
 zero and magenta below, faint where the unit barely responds.</figcaption>
 </figure>
+
+<div class="td-hero__install" markdown>
+
+```bash
+pip install torchdyno
+```
+
+</div>
 
 </div>
 

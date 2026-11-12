@@ -192,6 +192,10 @@
     backdrop-filter: none;
   }
 
+  .md-sidebar--primary[hidden] {
+    display: none;
+  }
+
   /* the theme's script sizes this sidebar only above 1220px */
   .md-sidebar--primary .md-sidebar__scrollwrap {
     position: static;

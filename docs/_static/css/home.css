@@ -9,12 +9,29 @@
   --td-state-low: #f0629f;
 }
 
+/* The text spans the graphic and its caption: the headline level with the
+   graphic's top, the buttons with the caption's bottom. The install command
+   sits under both columns, centred. */
 .md-typeset .td-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: 2.5rem;
-  align-items: center;
+  grid-template-areas:
+    "text states"
+    "text caption"
+    "install install";
+  grid-template-rows: auto 1fr auto;
+  column-gap: 2.5rem;
   margin: 1rem 0 2.5rem;
+}
+
+.md-typeset .td-hero__text {
+  display: flex;
+  flex-direction: column;
+  grid-area: text;
+}
+
+.md-typeset .td-hero__text > p:last-child {
+  margin: auto 0 0;
 }
 
 .md-typeset .td-hero h1 {
@@ -27,7 +44,12 @@
   text-wrap: balance;
 }
 
+.md-typeset .td-hero h1 .headerlink {
+  display: none;
+}
+
 .md-typeset .td-hero__text > p:first-of-type {
+  margin-top: 0;
   font-size: 0.95rem;
   color: var(--md-default-fg-color--light);
 }
@@ -36,29 +58,36 @@
   margin: 0.4rem 0.4rem 0 0;
 }
 
-.md-typeset .td-hero .highlight {
-  display: inline-block;
-  min-width: 15rem;
-  margin-top: 0.8rem;
-}
-
 .md-typeset .td-hero__live {
-  margin: 0;
+  display: contents;
 }
 
 .td-states {
   display: block;
+  grid-area: states;
   width: 100%;
   height: clamp(13rem, 24vw, 17rem);
 }
 
 .md-typeset .td-hero__live figcaption {
+  grid-area: caption;
   max-width: none;
   margin: 0.8rem 0 0;
   font-size: 0.65rem;
   font-style: normal;
   text-align: left;
   color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .td-hero__install {
+  grid-area: install;
+  justify-self: center;
+  margin-top: 2rem;
+}
+
+.md-typeset .td-hero__install .highlight {
+  min-width: 16rem;
+  margin: 0;
 }
 
 .md-typeset .td-hero ~ p {
@@ -122,5 +151,10 @@
   .md-typeset .td-hero,
   .md-typeset .td-split {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .md-typeset .td-hero {
+    grid-template-areas: "text" "states" "caption" "install";
+    row-gap: 1.5rem;
   }
 }
