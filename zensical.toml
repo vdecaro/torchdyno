@@ -121,3 +121,6 @@ show_signature_annotations = false
 [project.plugins.api-autonav]
 modules = ["torchdyno"]
 nav_section_title = "Reference"
+
+[project.extra]
+generator = false

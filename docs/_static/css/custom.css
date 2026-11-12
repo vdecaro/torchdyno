@@ -323,3 +323,15 @@
 .md-header__topic:first-child {
   font-weight: 400;
 }
+
+/* The footer holds only the copyright, on the right. */
+.md-footer-meta__inner {
+  justify-content: flex-end;
+  padding: 0 0.2rem;
+}
+
+.md-copyright {
+  width: auto;
+  padding: 0.3rem 0;
+  text-align: right;
+}
