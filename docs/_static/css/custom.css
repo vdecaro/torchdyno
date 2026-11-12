@@ -1,5 +1,6 @@
 /* The logo's palette: orange body, magenta underside, plum shadow. */
 [data-md-color-scheme="default"] {
+  --md-accent-fg-color--transparent: #c2246b1a;
   --md-primary-fg-color: #b8410f;
   --md-primary-fg-color--light: #e8551a;
   --md-primary-fg-color--dark: #8f320b;
@@ -13,6 +14,7 @@
 }
 
 [data-md-color-scheme="slate"] {
+  --md-accent-fg-color--transparent: #f0629f26;
   --md-primary-fg-color: #ff8a52;
   --md-primary-fg-color--light: #ffa47a;
   --md-primary-fg-color--dark: #e8551a;
@@ -28,10 +30,114 @@
 .md-typeset h1,
 .md-typeset h2,
 .md-typeset h3 {
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
-.md-typeset .grid.cards > ul > li:hover {
-  border-color: var(--md-primary-fg-color);
+/* Callouts in the palette: note magenta, tip plum, warning orange. */
+[data-md-color-scheme="default"] {
+  --td-note: #c2246b;
+  --td-tip: #5b1a4b;
+  --td-warning: #c94a12;
+}
+
+[data-md-color-scheme="slate"] {
+  --td-note: #f0629f;
+  --td-tip: #d9a6c6;
+  --td-warning: #ff8a52;
+}
+
+:root {
+  --md-admonition-icon--example: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>');
+}
+
+.md-typeset {
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  background-color: color-mix(in srgb, var(--td-note) 9%, transparent);
+}
+
+.md-typeset .note > .admonition-title::before,
+.md-typeset .note > summary::before {
+  background-color: var(--td-note);
+}
+
+.md-typeset .admonition.tip,
+.md-typeset details.tip {
+  background-color: color-mix(in srgb, var(--td-tip) 9%, transparent);
+}
+
+.md-typeset .tip > .admonition-title::before,
+.md-typeset .tip > summary::before {
+  background-color: var(--td-tip);
+}
+
+.md-typeset .admonition.warning,
+.md-typeset details.warning {
+  background-color: color-mix(in srgb, var(--td-warning) 10%, transparent);
+}
+
+.md-typeset .warning > .admonition-title::before,
+.md-typeset .warning > summary::before {
+  background-color: var(--td-warning);
+}
+
+/* "Full code" dropdowns hold a script, not a callout: keep them neutral. */
+.md-typeset details.example {
+  background-color: var(--md-code-bg-color);
+}
+
+.md-typeset .example > summary::before,
+.md-typeset .example > summary::after {
+  background-color: var(--md-default-fg-color--light);
+  color: var(--md-default-fg-color--light);
+}
+
+/* Index pages: a linked title over a one-line description. */
+.md-typeset .index-list > ol,
+.md-typeset .index-list > ul {
+  margin-left: 1.4em;
+}
+
+.md-typeset .index-list > ul {
+  list-style: none;
+  margin-left: 0;
+}
+
+.md-typeset .index-list li {
+  margin-bottom: 1.1em;
+}
+
+.md-typeset .index-list li::marker {
+  color: var(--md-primary-fg-color);
+  font-weight: 600;
+}
+
+.md-typeset .index-list li > p {
+  margin: 0;
+}
+
+.md-typeset .index-list li > p:first-child {
+  font-weight: 600;
+}
+
+.md-typeset .index-list li > p:first-child a {
+  text-decoration: none;
+}
+
+.md-typeset .index-list li > p:first-child a:hover {
+  text-decoration: underline;
+}
+
+.md-typeset .index-list li > p + p {
+  color: var(--md-default-fg-color--light);
+}
+
+/* Part names in tables read as one word. */
+.md-typeset table:not([class]) td:first-child code {
+  white-space: nowrap;
 }

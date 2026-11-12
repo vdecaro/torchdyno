@@ -8,7 +8,7 @@ edit_uri = "edit/main/docs/"
 copyright = "Copyright &copy; Valerio De Caro"
 extra_css = ["_static/css/custom.css"]
 nav = [
-  "index.md",
+  { "Home" = "index.md" },
   { "Overview" = [
     "overview/index.md",
     "overview/install.md",
@@ -67,8 +67,8 @@ features = [
 ]
 
 [project.theme.font]
-text = "Figtree"
-code = "JetBrains Mono"
+text = "IBM Plex Sans"
+code = "IBM Plex Mono"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"

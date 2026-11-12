@@ -48,12 +48,12 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font: 400 1.0625rem/1.6 "Figtree", ui-sans-serif, system-ui, sans-serif;
+  font: 400 1.0625rem/1.6 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 code,
 pre {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.85em;
 }
 
@@ -93,7 +93,7 @@ a:hover {
 h1,
 h2,
 h3 {
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.02em;
   margin: 0;
@@ -124,7 +124,7 @@ h3 {
   align-items: center;
   gap: 0.6rem;
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1.35rem;
   text-decoration: none;
 }
@@ -192,7 +192,7 @@ h3 {
   border: 2px solid var(--ink);
   border-radius: 999px;
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -292,11 +292,11 @@ h3 {
 
 .level-list li::marker {
   color: var(--flame);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .level-list a {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1.15rem;
 }
 
@@ -318,7 +318,7 @@ h3 {
 }
 
 .mode-grid a {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .model-groups h3 {
